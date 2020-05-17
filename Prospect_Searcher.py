@@ -18,7 +18,7 @@ searchString = args.search
 loadRequest = int(args.load)
 
 #------------------------------------------------------------------------------------#
-# Main Code
+# Get websites from google
 #------------------------------------------------------------------------------------#
 
 def GetSites():
@@ -33,6 +33,10 @@ def GetSites():
         except Exception:
             pass
     return collection
+
+#------------------------------------------------------------------------------------#
+# Get standard information from the webpage (Contact Info, Social media accounts)
+#------------------------------------------------------------------------------------#
 
 def GetInfo(collection):
     for website in collection:
@@ -103,6 +107,10 @@ def GetInfo(collection):
         collection[website] = info
     print(json.dumps(collection, indent=4))
 
+#------------------------------------------------------------------------------------#
+# Get details from their facebook account
+#------------------------------------------------------------------------------------#
+
 def CheckFacebook(info):
     if (info["Facebook Page"]["result"] == "success"):
         soup = ""
@@ -138,6 +146,10 @@ def CheckFacebook(info):
         except Exception:
             print(info["website]" + " - Could not find Facebook Page name"])
     return info
+
+#------------------------------------------------------------------------------------#
+# Get details from their twitter account
+#------------------------------------------------------------------------------------#
 
 def CheckTwitter(info):
     if (info["Twitter Page"]["result"] == "success"):
@@ -176,6 +188,10 @@ def CheckTwitter(info):
         except Exception:
             print(info["website"] + " - Could not find Twitter followers")
     return info
+
+#------------------------------------------------------------------------------------#
+# Get details from their instagram account
+#------------------------------------------------------------------------------------#
 
 def CheckInsta(info):
     if (info["Instagram Page"]["result"] == "success"):
@@ -218,5 +234,9 @@ def CheckInsta(info):
         except Exception:
             print(info["website"] + " - Could not find Instagram data")
     return info
+
+#------------------------------------------------------------------------------------#
+# Call stack
+#------------------------------------------------------------------------------------#
 
 GetInfo(GetSites())
