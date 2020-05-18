@@ -5,6 +5,7 @@
 import requests, argparse, re, json
 from bs4 import BeautifulSoup
 from googlesearch import search
+from googleapiclient.discovery import build
 
 #------------------------------------------------------------------------------------#
 # Variables
@@ -12,7 +13,7 @@ from googlesearch import search
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--search", "-s", metavar="STRING", required=True, help="Enter a search term")
-parser.add_argument("--load", "-l", metavar="INT", required=False, type=int, default=5, help="How many loads per search")
+parser.add_argument("--load", "-l", metavar="INT", required=False, type=int, default=4, help="How many loads per search")
 args = parser.parse_args()
 searchString = args.search
 loadRequest = int(args.load)
@@ -21,13 +22,24 @@ loadRequest = int(args.load)
 # Get websites from google
 #------------------------------------------------------------------------------------#
 
+def GoogleQuery(query, **kwargs):
+  query_service = build("customsearch", "v1", developerKey="AIzaSyCej-LooM_bgPV45cFJzd5H3nGPfl02wRY")
+  query_results = query_service.cse().list(q=query, cx="009310718199288639788:ykjb2j69tts", **kwargs).execute()
+  return query_results['items']
+
+#------------------------------------------------------------------------------------#
+# Get websites from query
+#------------------------------------------------------------------------------------#
+
 def GetSites():
     collection = {}
-    for site in search(searchString, tld="co.uk", lang='en', num=1, start=1, stop=1, pause=2):
-        site = re.sub(r"((\.com)|(\.co\.uk)|(\.org(\.uk)?)|(\.uk)).*", r"\1", site)     # Regex out last part of site to get homepage
+    websites = GoogleQuery(searchString, num=5)
+    for site in websites:
+        site = re.sub(r"((\.com)|(\.co\.uk)|(\.org(\.uk)?)|(\.uk)).*", r"\1", site["link"])     # Regex out last part of site to get homepage
         try:
             requests.get(site)
-            companyName = re.sub(r"^.*www\.", "", site)
+            companyName = re.sub(r"^.*?//", "", site)
+            companyName = re.sub(r"^.*?www\.", "", companyName)
             companyName = re.sub(r"\..*$", "", companyName)
             collection[companyName] = site
         except Exception:
@@ -92,15 +104,8 @@ def GetInfo(collection):
                         if (len(number) == 11):
                             info["Contact Number"]["contact number"] = number[:5] + " " + number[5:]
                             info["Contact Number"]["result"] = "success"
-                        else:
-                            print(website + " - Contact number is not 11 digits: " + number[:12] + "...")
-                else:
-                    print(website + " - Could not find contact number")
-            except Exception as e:
-                print(e)
-                print(website + " - Could not return contact page")
-        else:
-            print(website + " - Could find contact page")
+            except Exception:
+                pass
         info = CheckFacebook(info)
         info = CheckTwitter(info)
         info = CheckInsta(info)
@@ -118,7 +123,6 @@ def CheckFacebook(info):
             soup = BeautifulSoup(requests.get(info["Facebook Page"]["link"]).text, "html.parser")
         except Exception:
             info["Facebook Page"]["result"] = "failed"
-            print(info["website"] + " - Facebook Page could not be retrieved (" + info["Facebook Page"]["link"] + ")")
             return info
 
         # Get likes of facebook page
@@ -126,25 +130,19 @@ def CheckFacebook(info):
         if (likes):
             likes = re.sub(r"(\d)\s.*", r"\1", likes)        # Remove the characters after the last digit
             info["Facebook Page"]["likes"] = int(re.sub(r"\D", "", likes))
-        else:
-            print(info["website]" + " - Could not find Facebook likes"])
 
         # Get followers of facebook page
         followers = soup.find(text=re.compile(r"people follow this"))
         if (followers):
             followers = re.sub(r"(\d)\s.*", r"\1", followers)       # Remove the characters after the last digit
             info["Facebook Page"]["followers"] = int(re.sub(r"\D", "", followers))
-        else:
-            print(info["website]" + " - Could not find Facebook followers"])
 
         try:
             pageName = soup.find("h1").find("span")
             if (pageName):
                 info["Facebook Page"]["page name"] = pageName.text
-            else:
-                print(info["website]" + " - Could not find Facebook Page name"])
         except Exception:
-            print(info["website]" + " - Could not find Facebook Page name"])
+            pass
     return info
 
 #------------------------------------------------------------------------------------#
@@ -158,35 +156,28 @@ def CheckTwitter(info):
             soup = BeautifulSoup(requests.get(info["Twitter Page"]["link"]).text, "html.parser")
         except Exception:
             info["Twitter Page"]["result"] = "failed"
-            print(info["website"] + " - Twitter page could not be retrieved (" + info["Twitter Page"]["link"] + ")")
             return info
 
         try:
             pageName = soup.find_all("h2")[2].find("b")
             if (pageName):
                 info["Twitter Page"]["username"] = pageName.text
-            else:
-                print(info["website"] + " - Could not find Twitter Page name")
         except Exception:
-            print(info["website"] + " - Could not find Twitter Page name")
+            pass
 
         try:
             following = soup.find("a", href=re.compile(r"following")).find("span", {"data-count": re.compile(r".*")})
             if (following):
                 info["Twitter Page"]["following"] = int(re.sub(r"\D", "", following["data-count"]))
-            else:
-                print(info["website"] + " - Could not find Twitter following")
         except Exception:
-            print(info["website"] + " - Could not find Twitter following")
+            pass
 
         try:
             followers = soup.find("a", href=re.compile(r"followers")).find("span", {"data-count": re.compile(r".*")})
             if (followers):
                 info["Twitter Page"]["followers"] = int(re.sub(r"\D", "", followers["data-count"]))
-            else:
-                print(info["website"] + " - Could not find Twitter followers")
         except Exception:
-            print(info["website"] + " - Could not find Twitter followers")
+            pass
     return info
 
 #------------------------------------------------------------------------------------#
@@ -197,10 +188,17 @@ def CheckInsta(info):
     if (info["Instagram Page"]["result"] == "success"):
         soup = ""
         try:
-            soup = BeautifulSoup(requests.get(info["Instagram Page"]["link"]).text, "html.parser")
-        except Exception:
+            soup = BeautifulSoup(requests.get(info["Instagram Page"]["link"]).text, "html.parser", allow_redirects=True)
+        except Exception as e:
             info["Instagram Page"]["result"] = "failed"
-            print(info["website"] + " - Instagram page could not be retrieved (" + info["Instagram Page"]["link"] + ")")
+            print(e)
+            return info
+
+        # Check if page exists
+        exists = soup.find("h2", text=re.compile(r"Sorry, this page isn't available."))
+        if (not exists):
+            info["Instagram Page"]["result"] = "failed"
+            info["Instagram Page"]["msg"] = "Instagram page is not available"
             return info
 
         # Get username of account
@@ -209,8 +207,6 @@ def CheckInsta(info):
             username = re.sub(r"^.*@", "", username.text.strip())        # Regex out everything except identifier
             username = re.sub(r"\).*$", "", username)
             info["Instagram Page"]["username"] = username
-        else:
-            print(info["website]" + " - Could not find Instagram username"])
 
         following = 0
         followers = 0
@@ -219,20 +215,16 @@ def CheckInsta(info):
             followData = re.sub(r";$", "", followData.text)
             followData = re.sub(r"^.*?=\s", "", followData)
             followData = json.loads(followData)
-            following = followData["entry_data"]["ProfilePage"][0]["graphql"]["user"]["edge_followed_by"]["count"]
-            followers = followData["entry_data"]["ProfilePage"][0]["graphql"]["user"]["edge_follow"]["count"]
+            followers = followData["entry_data"]["ProfilePage"][0]["graphql"]["user"]["edge_followed_by"]["count"]
+            following = followData["entry_data"]["ProfilePage"][0]["graphql"]["user"]["edge_follow"]["count"]
 
             if (following):
                 info["Instagram Page"]["following"] = int(re.sub(r"\D", "", str(following)))
-            else:
-                print(info["website"] + " - Could not find Instagram following")
 
             if (followers):
                 info["Instagram Page"]["followers"] = int(re.sub(r"\D", "", str(followers)))
-            else:
-                print(info["website"] + " - Could not find Instagram followers")
         except Exception:
-            print(info["website"] + " - Could not find Instagram data")
+            pass
     return info
 
 #------------------------------------------------------------------------------------#
