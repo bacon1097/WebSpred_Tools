@@ -33,9 +33,13 @@ def GoogleQuery(query, **kwargs):
 
 def GetSites():
     collection = {}
-    websites = GoogleQuery(searchString, num=5)
-    for site in websites:
-        site = re.sub(r"((\.com)|(\.co\.uk)|(\.org(\.uk)?)|(\.uk)).*", r"\1", site["link"])     # Regex out last part of site to get homepage
+    websites = GoogleQuery(searchString, num=2)
+    otherWebsites = []
+    for site in search(searchString, tld='co.uk', lang='en', num=10, start=0, stop=2, pause=2.0):
+        otherWebsites.append(site)
+    # print(otherWebsites)
+    for site in otherWebsites:
+        site = re.sub(r"((\.com)|(\.co\.uk)|(\.org(\.uk)?)|(\.uk)).*", r"\1", site)     # Regex out last part of site to get homepage
         try:
             requests.get(site)
             companyName = re.sub(r"^.*?//", "", site)
