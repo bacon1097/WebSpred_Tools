@@ -81,6 +81,7 @@ app.get("/", async (req, res) => {
   }
 
   res.json(jsonResponse);
+  console.log("Responded");
 });
 
 app.listen(8889, () => {
@@ -136,7 +137,7 @@ domain.
 function GetUnique(links) {
   var correctedArray = [];
   for (var link of links) {
-    link = link.replace(/((\.com)|(\.co\.uk)|(\.org(\.uk)?)|(\.uk)).*/, "$1");    // Replace everything after the .com identifier
+    link = link.replace(/((\.com)|(\.co\.uk)|(\.org(\.uk)?)|(\.uk)|(\.co)).*/, "$1");    // Replace everything after the .com identifier
     correctedArray.push(link);
   }
   correctedArray = [...new Set(correctedArray)];
@@ -158,6 +159,7 @@ function CreateJsonInfo(link) {
     var identifier = identifier.replace(/\..*$/, "");   // Replace everything after the first "."
 
     json[identifier] = {    // Create the initial template for information
+      website: link,
       facebookPage: {},
       twitterPage: {},
       instagramPage: {},
@@ -240,6 +242,8 @@ function GetContactInfo(link) {
     const browser = await puppet.launch();
     const page = await browser.newPage();
     await page.goto(link);
+
+    jsonResponse.body.number = "07375090629";
 
     resolve(jsonResponse);
   }).catch(err => {
