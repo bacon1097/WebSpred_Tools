@@ -5,7 +5,6 @@
 const express = require('express');
 const cors = require('cors');
 const app = express();
-const puppet = require("puppeteer");
 const fetch = require("node-fetch");
 const cheerio = require("cheerio");
 
@@ -160,18 +159,16 @@ function CreateJsonInfo(link) {
       contactPage: {}
     };
 
-    // const browser = await puppet.launch();
-    // const page = await browser.newPage();
-    // await page.goto(link);    // Get HTML of link
-
     // Get HTML of website
     var html = await (await fetch(link)).text();
     var $ = cheerio.load(html);
 
+    var hrefs = $("a[href]");   // Get all hrefs
+
 
     // Get Facebook details
-    var facebook = ($("a[href]").filter((i, elem) => {
-        return $(elem).attr("href").match(/facebook\.com\/?(?!sharer)/);
+    var facebook = (hrefs.filter((i, elem) => {
+        return $(elem).attr("href").match(/facebook\.com\/(?!sharer)/);
     })).first();
 
     if (facebook) {
@@ -183,8 +180,8 @@ function CreateJsonInfo(link) {
     }
 
     // Get Twitter details
-    var twitter = ($("a[href]").filter((i, elem) => {
-      return $(elem).attr("href").match(/twitter\.com\/?(?!intent)/);
+    var twitter = (hrefs.filter((i, elem) => {
+      return $(elem).attr("href").match(/twitter\.com\/(?!intent)/);
     })).first();
 
     if (twitter) {
@@ -195,49 +192,44 @@ function CreateJsonInfo(link) {
       }
     }
 
-    // var [twitter] = await page.$x('//a[contains(@href, "twitter.com") and not(contains(@href, "intent"))]');
-    // if (twitter) {
-    //   var href = await (await twitter.getProperty("href")).jsonValue();
-    //   json[identifier].twitterPage.link = href;
-    //   json[identifier].twitterPage.status = "success"
-    // }
-
     // Get Instagram details
-    // var [instagram] = await page.$x('//a[contains(@href, "instagram.com")]');
-    // if (instagram) {
-    //   var href = await (await instagram.getProperty("href")).jsonValue();
-    //   json[identifier].instagramPage.link = href;
-    //   json[identifier].instagramPage.status = "success";
-    // }
+    var instagram = (hrefs.filter((i, elem) => {
+      return $(elem).attr("href").match(/instagram\.com\/.*/);
+    })).first();
 
-    // // Get contact details
-    // var contactPageLinks = await page.$x('//a');
-    // var contactPage;
-    // for (var tempPage of contactPageLinks) {
-    //   try {
-    //     var tempLink = (await (await tempPage.getProperty("href")).jsonValue()).replace(/((.*?)\/\/(.*?)\/)|^\//, "");
-    //     if (tempLink.match(/contact/i)) {
-    //       contactPage = tempLink;
-    //     }
-    //   }
-    //   catch (err) {}
-    // }
+    if (instagram) {
+      var href = instagram.attr("href");
+      if (href) {
+        json[identifier].instagramPage.link = href.replace(/(\.com\/.*?)\/.*/, "$1");   // Replace everything after the identifier
+        json[identifier].instagramPage.status = "success"
+      }
+    }
 
-    // if (contactPage) {
-    //   contactPage = `${link}/${contactPage}`;
-    //   json[identifier].contactPage.link = contactPage;
-    //   try {
-    //     var contactInfo = await GetContactInfo(contactPage);
-    //     if (contactInfo.status === "failed" || !contactInfo.body) {
-    //       return ({status: "failed", body: {}});
-    //     }
-    //     json[identifier].contactPage = {...json[identifier].contactPage, ...contactInfo.body};
-    //   }
-    //   catch (err) {
-    //     console.log(err);
-    //     return({status: "failed", body: {}});
-    //   }
-    // }
+    // Get Contact details
+    var contactPageElem = (hrefs.filter((i, elem) => {
+      var link = $(elem).attr("href").replace(/(.*?\/\/.*?\/)|(^\/)/, "");    // Regex out the domain but keep page identifier
+      return link.match(/contact/i);
+    })).first();
+
+    if (contactPageElem) {
+      var contactPage = contactPageElem.attr("href");
+      if (contactPage) {
+        contactPage = contactPage.replace(/(.*?\/\/.*?\/)|(^\/)/, "");
+        contactPage = `${link}/${contactPage}`;
+        json[identifier].contactPage.link = contactPage;
+        try {
+          var contactInfo = await GetContactInfo(contactPage);
+          if (contactInfo.status === "failed" || !contactInfo.body) {
+            return ({status: "failed", body: {}});
+          }
+          json[identifier].contactPage = {...json[identifier].contactPage, ...contactInfo.body};
+        }
+        catch (err) {
+          console.log(err);
+          return({status: "failed", body: {}});
+        }
+      }
+    }
 
     jsonResponse.body =  json;
     resolve(jsonResponse);
@@ -255,12 +247,8 @@ function GetContactInfo(link) {
   return new Promise(async (resolve, reject) => {
     var jsonResponse = {status: "success", body: {}};
 
-    const browser = await puppet.launch();
-    const page = await browser.newPage();
-    await page.goto(link);
 
     jsonResponse.body.number = "07375090629";
-
     resolve(jsonResponse);
   }).catch(err => {
     console.log(err);
