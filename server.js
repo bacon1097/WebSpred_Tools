@@ -247,8 +247,41 @@ function GetContactInfo(link) {
   return new Promise(async (resolve, reject) => {
     var jsonResponse = {status: "success", body: {}};
 
+    // Get HTML of website
+    var html = await (await fetch(link)).text();
+    var $ = cheerio.load(html);
 
-    jsonResponse.body.number = "07375090629";
+    var textElems = $("body *").filter((i, elem) => {   // Get all text elements
+      return $(elem).text();
+    });
+
+    // Get contact number
+    var contactNumberElem = (textElems.filter((i, elem) => {    // Get all numbers that match 11 digits
+      if ($(elem).text().match(/.*\d[\d\s]{10,12}.*/)) {
+        var number = $(elem).text().replace(/\D/, "");
+        return number.length == 11;
+      }
+    })).first();
+
+    if (contactNumberElem) {
+      var contactNumber = $(contactNumberElem).text().replace(/\D/, "");
+      if (contactNumber) {
+        jsonResponse.body.number = contactNumber;
+      }
+    }
+
+    // Get contact email
+    var emailElem = (textElems.filter((i, elem) => {
+      return $(elem).text().match(/\s\w+@\w+[\.\w]+\s/);
+    })).first();
+
+    if (emailElem) {
+      var email = $(emailElem).text();
+      if (email) {
+        jsonResponse.body.email = email.match(/\s(\w+@\w+[\.\w]+)\s/)[1];
+      }
+    }
+
     resolve(jsonResponse);
   }).catch(err => {
     console.log(err);
