@@ -6,6 +6,8 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 const puppet = require("puppeteer");
+const fetch = require("node-fetch");
+const cheerio = require("cheerio");
 
 //------------------------------------------------------------------------------------//
 // Config
@@ -23,6 +25,20 @@ app.set('json spaces', 4);
 //------------------------------------------------------------------------------------//
 // Server calls
 //------------------------------------------------------------------------------------//
+
+// async function getUrl() {
+//   var result = await fetch("https://www.google.co.uk/search?q=gym&num=10")
+//   var html = await result.text();
+//   var $ = cheerio.load(html);
+//   var titles = $("div[role=heading]").parent().parent().find("a");
+//   titles.each((index, elem) => {
+//     console.log($(elem).attr("href").replace(/^.*?q=/, "").replace(/((\.com)|(\.co\.uk)|(\.org(\.uk)?)|(\.uk)|(\.co)).*/, "$1"));
+//   });
+//   console.log("Done");
+// }
+
+// getUrl();
+
 
 app.get("/", async (req, res) => {
   var jsonResponse = {status: "success", body: {results: []}};
