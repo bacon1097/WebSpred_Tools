@@ -7,6 +7,7 @@ const cors = require('cors');
 const app = express();
 const fetch = require("node-fetch");
 const cheerio = require("cheerio");
+const fs = require('fs');
 
 //------------------------------------------------------------------------------------//
 // Config
@@ -42,16 +43,16 @@ app.get("/", async (req, res) => {
     googleSearchString += `&as_qdr=${time}`;
   }
 
-  var links = [];
-  try {
-    links = await SearchGoogle(googleSearchString);
-    if (links.status === "failed" || !links.body) {
-      res.json({status: "failed", body: {results: [], msg: "Failed when trying to get Google Searches"}});
-      return;
-    }
+  var searchGoogle = CheckGoogleBotLock();
+  console.log(searchGoogle);
+
+  if (!searchGoogle) {    // If we haven't waited at least an hour, dont search
+    res.json({status: "failed", body: {results: [], msg: "Please wait 1 hour till searching again"}});
+    return;
   }
-  catch (err) {
-    console.log(err);
+
+  var links = await SearchGoogle(googleSearchString);
+  if (links.status === "failed") {
     res.json({status: "failed", body: {results: [], msg: "Failed when trying to get Google Searches"}});
     return;
   }
@@ -62,22 +63,15 @@ app.get("/", async (req, res) => {
   }
   else {
     res.json({status: "failed", body: {results: [], msg: "Cannot return more than 100 websites"}})
+    return;
   }
 
   for (var link of links) {
-    try {
       console.log(`Getting info on: ${link}`);
-      var result = await CreateJsonInfo(link)
-      if (result === "failed" || !result.body) {
-        res.json({status: "failed", body: {results: [], msg: "Failed when creating/finding JSON info for results"}});
-        return;
+      var result = await CreateJsonInfo(link);
+      if (result.status === "success") {
+        jsonResponse.body.results.push(result.body);
       }
-      jsonResponse.body.results.push(result.body);
-    }
-    catch (err) {
-      console.log(err);
-      continue;
-    }
   }
 
   res.json(jsonResponse);
@@ -101,25 +95,47 @@ function SearchGoogle(link) {
   return new Promise(async (resolve, reject) => {
     var jsonResponse = {status: "success", body: {}};
 
-    var html = await (await fetch(link)).text();
-    var $ = cheerio.load(html);
+    console.log("Getting google searches: " + link);
+    // Get HTML of website
+    var html, $;
+    try {
+      html = await (await fetch(link)).text();
+      $ = cheerio.load(html);
+    }
+    catch {
+      reject({status: "failed", body: {msg: "Could not get google searches for: " + link}});
+    }
+
+    var botDetection = $("#infoDiv");   // Check for Google's bot detection
+    if (botDetection) {
+      var text = botDetection.text();
+      if (text.match(/This page appears when Google automatically detects requests/)) {
+        fs.writeFileSync("GoogleBotLock", new Date(new Date().getTime()));    // Write current time and date to file
+        reject({status: "failed", body: {msg: "Google detected bot detection"}});
+      }
+    }
 
     var links = [];
 
     var results = $("div[role=heading]").parent().parent().find("a");   // Get the results from the page
-    results.each((i, elem) => {
-      var href = $(elem).attr("href");
-      if (href) {
-        href = href.replace(/^.*?q=/, "");    // Replace the rubbish at the beginning
-        links.push(href);
-      }
-    });
+    if (results) {
+      results.each((i, elem) => {
+        var href = $(elem).attr("href");
+        if (href) {
+          href = href.replace(/^.*?q=/, "");    // Replace the rubbish at the beginning
+          links.push(href);
+        }
+      });
+    }
+    else {
+      reject({status: "failed", body: {msg: "Could not get search results"}});
+    }
 
     jsonResponse.body = links;
     resolve(jsonResponse);
   }).catch(err => {
     console.log(err);
-    return({status: "failed", body: {}});
+    return({status: "failed", body: {msg: "Error thrown in SearchGoogle Promise"}});
   });
 }
 
@@ -148,7 +164,7 @@ function CreateJsonInfo(link) {
 
     var json = {};
     var identifier = link.replace(/^.*?\/\//, "");    // Replace everything up to the first //
-    var identifier = identifier.replace(/^.*?www\./, "");   // Replace the first www.
+    var identifier = identifier.replace(/^.*?((www)|(uk))\./, "");   // Replace the first www. or other identifiers
     var identifier = identifier.replace(/\..*$/, "");   // Replace everything after the first "."
 
     json[identifier] = {    // Create the initial template for information
@@ -160,8 +176,14 @@ function CreateJsonInfo(link) {
     };
 
     // Get HTML of website
-    var html = await (await fetch(link)).text();
-    var $ = cheerio.load(html);
+    var html, $;
+    try {
+      html = await (await fetch(link)).text();
+      $ = cheerio.load(html);
+    }
+    catch {
+      reject({status: "failed", body: {msg: "Could not get html data of: " + link}});
+    }
 
     var hrefs = $("a[href]");   // Get all hrefs
 
@@ -217,25 +239,18 @@ function CreateJsonInfo(link) {
         contactPage = contactPage.replace(/(.*?\/\/.*?\/)|(^\/)/, "");
         contactPage = `${link}/${contactPage}`;
         json[identifier].contactPage.link = contactPage;
-        try {
-          var contactInfo = await GetContactInfo(contactPage);
-          if (contactInfo.status === "failed" || !contactInfo.body) {
-            return ({status: "failed", body: {}});
-          }
+        var contactInfo = await GetContactInfo(contactPage);
+        if (contactInfo.status === "success") {
           json[identifier].contactPage = {...json[identifier].contactPage, ...contactInfo.body};
-        }
-        catch (err) {
-          console.log(err);
-          return({status: "failed", body: {}});
         }
       }
     }
 
-    jsonResponse.body =  json;
+    jsonResponse.body = json;
     resolve(jsonResponse);
   }).catch(err => {
     console.log(err);
-    return({status: "failed", body: {}});
+    return({status: "failed", body: {msg: "Error thrown in CreateJsonInfo Promise"}});
   });
 }
 
@@ -245,11 +260,20 @@ contact page link for the best result.
 */
 function GetContactInfo(link) {
   return new Promise(async (resolve, reject) => {
-    var jsonResponse = {status: "success", body: {}};
+    var jsonResponse = {status: "success", body: {
+      number: 0,
+      email: ""
+    }};
 
     // Get HTML of website
-    var html = await (await fetch(link)).text();
-    var $ = cheerio.load(html);
+    var html, $;
+    try {
+      html = await (await fetch(link)).text();
+      $ = cheerio.load(html);
+    }
+    catch {
+      reject({status: "failed", body: {numer: 0, email: "", msg: "Failed to get contact page HTML for: " + link}});
+    }
 
     var textElems = $("body *").filter((i, elem) => {   // Get all text elements
       return $(elem).text();
@@ -266,7 +290,7 @@ function GetContactInfo(link) {
     if (contactNumberElem) {
       var contactNumber = $(contactNumberElem).text().replace(/\D/, "");
       if (contactNumber) {
-        jsonResponse.body.number = contactNumber;
+        jsonResponse.body.number = parseInt(contactNumber);
       }
     }
 
@@ -285,6 +309,19 @@ function GetContactInfo(link) {
     resolve(jsonResponse);
   }).catch(err => {
     console.log(err);
-    return({status: "failed", body: {}});
+    return({status: "failed", body: {msg: "Error thrown in GetContactInfo Promise"}});
   });
+}
+
+function CheckGoogleBotLock() {
+  var lock = "GoogleBotLock";
+  if (fs.existsSync(lock)) {    // If file exists
+    var time = fs.readFileSync(lock, "utf8");
+    console.log(Date.parse(time));
+    if ((Date.parse(time) + (60*60000)) <= new Date().getTime()) {    // If 1 hour has passed
+      return true;    // Allow for searching by returning true
+    }
+    return false;   // If 1 hour hasn't passed then don't allow searching
+  }
+  return true;    // If file doesn't exist then allow for searching
 }
