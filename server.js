@@ -44,7 +44,6 @@ app.get("/", async (req, res) => {
   }
 
   var searchGoogle = CheckGoogleBotLock();
-  console.log(searchGoogle);
 
   if (!searchGoogle) {    // If we haven't waited at least an hour, dont search
     res.json({status: "failed", body: {results: [], msg: "Please wait 1 hour till searching again"}});
@@ -317,8 +316,8 @@ function CheckGoogleBotLock() {
   var lock = "GoogleBotLock";
   if (fs.existsSync(lock)) {    // If file exists
     var time = fs.readFileSync(lock, "utf8");
-    console.log(Date.parse(time));
     if ((Date.parse(time) + (60*60000)) <= new Date().getTime()) {    // If 1 hour has passed
+      fs.unlinkSync(lock);
       return true;    // Allow for searching by returning true
     }
     return false;   // If 1 hour hasn't passed then don't allow searching
