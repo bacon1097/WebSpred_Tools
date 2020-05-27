@@ -164,7 +164,7 @@ function CreateJsonInfo(link) {
 
     var json = {};
     var identifier = link.replace(/^.*?\/\//, "");    // Replace everything up to the first //
-    var identifier = identifier.replace(/^.*?((www)|(uk))\./, "");   // Replace the first www. or other identifiers
+    var identifier = identifier.replace(/^.*?((www)|(uk)|(en))\./, "");   // Replace the first www. or other identifiers
     var identifier = identifier.replace(/\..*$/, "");   // Replace everything after the first "."
 
     json[identifier] = {    // Create the initial template for information
@@ -261,7 +261,7 @@ contact page link for the best result.
 function GetContactInfo(link) {
   return new Promise(async (resolve, reject) => {
     var jsonResponse = {status: "success", body: {
-      number: 0,
+      number: "",
       email: ""
     }};
 
@@ -272,7 +272,7 @@ function GetContactInfo(link) {
       $ = cheerio.load(html);
     }
     catch {
-      reject({status: "failed", body: {numer: 0, email: "", msg: "Failed to get contact page HTML for: " + link}});
+      reject({status: "failed", body: {numer: "", email: "", msg: "Failed to get contact page HTML for: " + link}});
     }
 
     var textElems = $("body *").filter((i, elem) => {   // Get all text elements
@@ -290,7 +290,7 @@ function GetContactInfo(link) {
     if (contactNumberElem) {
       var contactNumber = $(contactNumberElem).text().replace(/\D/, "");
       if (contactNumber) {
-        jsonResponse.body.number = parseInt(contactNumber);
+        jsonResponse.body.number = contactNumber;
       }
     }
 
@@ -309,7 +309,7 @@ function GetContactInfo(link) {
     resolve(jsonResponse);
   }).catch(err => {
     console.log(err);
-    return({status: "failed", body: {msg: "Error thrown in GetContactInfo Promise"}});
+    return({status: "failed", body: {number: "", email: "", msg: "Error thrown in GetContactInfo Promise"}});
   });
 }
 
