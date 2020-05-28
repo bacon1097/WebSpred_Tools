@@ -37,60 +37,62 @@ router.get("/", async (req, res) => {
 
 app.use("/.netlify/functions/api", router);
 
-app.get("/", async (req, res) => {
-  var jsonResponse = {status: "success", body: {results: []}};
-  var searchTerm = req.query.searchTerm;
-  var time = req.query.recentIndex;
-  var num = req.query.num;
+module.exports.handler = serverless(app);
 
-  if (!searchTerm) {
-    res.json({status: "failed", body: {}, msg: "Provide a search term with 'searchTerm=query'"});
-    return;
-  }
+// app.get("/", async (req, res) => {
+//   var jsonResponse = {status: "success", body: {results: []}};
+//   var searchTerm = req.query.searchTerm;
+//   var time = req.query.recentIndex;
+//   var num = req.query.num;
 
-  var googleSearchString = `https://www.google.com/search?q=${searchTerm}&num=100`;
+//   if (!searchTerm) {
+//     res.json({status: "failed", body: {}, msg: "Provide a search term with 'searchTerm=query'"});
+//     return;
+//   }
 
-  if (time === "d" || time === "w" || time === "m") {   // Show google indexes within the past 24 hours | 7 days | 1 month
-    googleSearchString += `&as_qdr=${time}`;
-  }
+//   var googleSearchString = `https://www.google.com/search?q=${searchTerm}&num=100`;
 
-  var searchGoogle = CheckGoogleBotLock();
+//   if (time === "d" || time === "w" || time === "m") {   // Show google indexes within the past 24 hours | 7 days | 1 month
+//     googleSearchString += `&as_qdr=${time}`;
+//   }
 
-  if (!searchGoogle) {    // If we haven't waited at least an hour, dont search
-    res.json({status: "failed", body: {results: [], msg: "Please wait 1 hour till searching again"}});
-    return;
-  }
+//   var searchGoogle = CheckGoogleBotLock();
 
-  var links = await SearchGoogle(googleSearchString);
-  if (links.status === "failed") {
-    res.json({status: "failed", body: {results: [], msg: "Failed when trying to get Google Searches"}});
-    return;
-  }
+//   if (!searchGoogle) {    // If we haven't waited at least an hour, dont search
+//     res.json({status: "failed", body: {results: [], msg: "Please wait 1 hour till searching again"}});
+//     return;
+//   }
 
-  links = GetUnique(links.body);
-  if (num <= 100) {
-    links = links.slice(0, num);
-  }
-  else {
-    res.json({status: "failed", body: {results: [], msg: "Cannot return more than 100 websites"}})
-    return;
-  }
+//   var links = await SearchGoogle(googleSearchString);
+//   if (links.status === "failed") {
+//     res.json({status: "failed", body: {results: [], msg: "Failed when trying to get Google Searches"}});
+//     return;
+//   }
 
-  for (var link of links) {
-      console.log(`Getting info on: ${link}`);
-      var result = await CreateJsonInfo(link);
-      if (result.status === "success") {
-        jsonResponse.body.results.push(result.body);
-      }
-  }
+//   links = GetUnique(links.body);
+//   if (num <= 100) {
+//     links = links.slice(0, num);
+//   }
+//   else {
+//     res.json({status: "failed", body: {results: [], msg: "Cannot return more than 100 websites"}})
+//     return;
+//   }
 
-  res.json(jsonResponse);
-  console.log("Responded");
-});
+//   for (var link of links) {
+//       console.log(`Getting info on: ${link}`);
+//       var result = await CreateJsonInfo(link);
+//       if (result.status === "success") {
+//         jsonResponse.body.results.push(result.body);
+//       }
+//   }
 
-app.listen(8889, () => {
-  console.log('Example app listening on port 8889!');
-});
+//   res.json(jsonResponse);
+//   console.log("Responded");
+// });
+
+// app.listen(8889, () => {
+//   console.log('Example app listening on port 8889!');
+// });
 
 //------------------------------------------------------------------------------------//
 // Server functions
