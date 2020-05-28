@@ -4,16 +4,19 @@
 
 const express = require('express');
 const cors = require('cors');
-const app = express();
 const fetch = require("node-fetch");
 const cheerio = require("cheerio");
 const fs = require('fs');
+const serverless = require('serverless-http');
 
 //------------------------------------------------------------------------------------//
 // Config
 //------------------------------------------------------------------------------------//
 
 require('events').EventEmitter.defaultMaxListeners = 15;
+
+const app = express();
+const router = express.Router();
 
 app.use(cors({
   origin: "*"
@@ -25,6 +28,14 @@ app.set('json spaces', 4);
 //------------------------------------------------------------------------------------//
 // Server calls
 //------------------------------------------------------------------------------------//
+
+router.get("/", async (req, res) => {
+  res.json({
+    body: "Hello"
+  });
+});
+
+app.use("/.netlify/functions/api", router);
 
 app.get("/", async (req, res) => {
   var jsonResponse = {status: "success", body: {results: []}};
