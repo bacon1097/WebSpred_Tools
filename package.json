@@ -4,8 +4,8 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "start": "./node_modules/.bin/netlify-lambda serve src",
-    "build": "./node_modules/.bin/netlify-lambda build src"
+    "build": "netlify-lambda build express",
+    "start": "nodemon server-local.js"
   },
   "author": "Ben Brunyee",
   "license": "ISC",
