@@ -83,10 +83,6 @@ router.get("/", async (req, res) => {
   console.log("Responded");
 });
 
-app.listen(8889, () => {
-  console.log('Example app listening on port 8889!');
-});
-
 app.use(bodyParser.json());
 app.use('/.netlify/functions/server', router);  // path must route to lambda
 app.use('/', (req, res) => res.sendFile(path.join(__dirname, '../index.html')));
