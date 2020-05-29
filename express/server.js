@@ -21,10 +21,10 @@ require('events').EventEmitter.defaultMaxListeners = 15;
 const app = express();
 const router = express.Router();
 
-app.use(cors({
-  origin: "*"
-  // origin: "http://webspred.co.uk"    // Allows a certain URL to use this server
-}));
+// app.use(cors({
+//   origin: "*"
+//   // origin: "http://webspred.co.uk"    // Allows a certain URL to use this server
+// }));
 
 app.set('json spaces', 4);
 
@@ -107,7 +107,17 @@ function SearchGoogle(link) {
     // Get HTML of website
     var html, $;
     try {
-      html = await (await fetch(link)).text();
+      html = await (await fetch(link, data={
+        method: "GET",
+        mode: "*cors",
+        cache: "no-cache",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "text/html"
+        },
+        redirect: "follow",
+        referrerPolicy: "no-referrer"
+      })).text();
       $ = cheerio.load(html);
     }
     catch {
