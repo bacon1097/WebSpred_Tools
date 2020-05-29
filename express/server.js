@@ -107,17 +107,7 @@ function SearchGoogle(link) {
     // Get HTML of website
     var html, $;
     try {
-      html = await (await fetch(link, {
-        method: "GET",
-        mode: "*cors",
-        cache: "no-cache",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "text/html"
-        },
-        redirect: "follow",
-        referrerPolicy: "no-referrer"
-      })).text();
+      html = await (await fetch(link)).text();
       $ = cheerio.load(html);
     }
     catch (e) {
