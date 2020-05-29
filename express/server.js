@@ -107,7 +107,7 @@ function SearchGoogle(link) {
     // Get HTML of website
     var html, $;
     try {
-      html = await (await fetch(link, data={
+      html = await (await fetch(link, {
         method: "GET",
         mode: "*cors",
         cache: "no-cache",
