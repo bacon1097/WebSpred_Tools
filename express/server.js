@@ -153,7 +153,7 @@ function SearchGoogle(link) {
     resolve(jsonResponse);
   }).catch(err => {
     console.log(err);
-    return({status: "failed", body: {msg: "Error thrown in SearchGoogle Promise"}});
+    return({status: "failed", body: {msg: err}});
   });
 }
 
