@@ -107,11 +107,11 @@ function SearchGoogle(link) {
     // Get HTML of website
     var html, $;
     try {
-      html = await (await fetch(link)).text();
+      html = await (await fetch(link, {headers: {"Access-Control-Allow-Origin": "*"}})).text();
       $ = cheerio.load(html);
     }
     catch (e) {
-      reject({status: "failed", body: {msg: "Could not get google searches for: " + link + "\n" + e}});
+      reject({status: "failed", body: {msg: e}});
     }
 
     var botDetection = $("#infoDiv");   // Check for Google's bot detection
@@ -189,8 +189,8 @@ function CreateJsonInfo(link) {
       html = await (await fetch(link)).text();
       $ = cheerio.load(html);
     }
-    catch {
-      reject({status: "failed", body: {msg: "Could not get html data of: " + link}});
+    catch (e) {
+      reject({status: "failed", body: {msg: e}});
     }
 
     var hrefs = $("a[href]");   // Get all hrefs
@@ -258,7 +258,7 @@ function CreateJsonInfo(link) {
     resolve(jsonResponse);
   }).catch(err => {
     console.log(err);
-    return({status: "failed", body: {msg: "Error thrown in CreateJsonInfo Promise"}});
+    return({status: "failed", body: {msg: err}});
   });
 }
 
@@ -279,8 +279,8 @@ function GetContactInfo(link) {
       html = await (await fetch(link)).text();
       $ = cheerio.load(html);
     }
-    catch {
-      reject({status: "failed", body: {numer: "", email: "", msg: "Failed to get contact page HTML for: " + link}});
+    catch (e) {
+      reject({status: "failed", body: {numer: "", email: "", msg: e}});
     }
 
     var textElems = $("body *").filter((i, elem) => {   // Get all text elements
@@ -317,7 +317,7 @@ function GetContactInfo(link) {
     resolve(jsonResponse);
   }).catch(err => {
     console.log(err);
-    return({status: "failed", body: {number: "", email: "", msg: "Error thrown in GetContactInfo Promise"}});
+    return({status: "failed", body: {number: "", email: "", msg: err}});
   });
 }
 
