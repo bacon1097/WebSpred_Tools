@@ -58,7 +58,7 @@ router.get("/", async (req, res) => {
 
   var links = await SearchGoogle(googleSearchString);
   if (links.status === "failed") {
-    res.json({status: "failed", body: {results: [], msg: "Failed when trying to get Google Searches"}});
+    res.json({status: "failed", body: {results: [], msg: links.body.msg}});
     return;
   }
 
@@ -120,8 +120,8 @@ function SearchGoogle(link) {
       })).text();
       $ = cheerio.load(html);
     }
-    catch {
-      reject({status: "failed", body: {msg: "Could not get google searches for: " + link}});
+    catch (e) {
+      reject({status: "failed", body: {msg: "Could not get google searches for: " + link + "\n" + e}});
     }
 
     var botDetection = $("#infoDiv");   // Check for Google's bot detection
