@@ -8,14 +8,14 @@ Instructions on how to setup and use this tool.
 1. Install [NodeJS](https://nodejs.org/en/)
 1. Download this repository from [GitHub]()
 1. Open a terminal
-    * Mac ```terminal (bash)```
-    * Windows ```cmd```
+    * Mac => ```terminal (bash)```
+    * Windows => ```cmd```
 1. ```cd``` into the directory of your downloaded version of this project.
-    * Mac & Windows```cd Downloads``` (default directory)
+    * Mac & Windows => ```cd Downloads``` (default directory)
 1. Install all dependencies
-    * Mac & Windows ```npm install```
+    * Mac & Windows => ```npm install```
 1. Run your application with appropriate options
-    * Mac & Windows ```node Prospect_Searcher.js -seachTerm gym -results 10```
+    * Mac & Windows => ```node Prospect_Searcher.js -seachTerm gym -results 10```
 
 ## Authors
 
