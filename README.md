@@ -19,4 +19,4 @@ Instructions on how to setup and use this tool.
 
 ## Authors
 
-* **Ben Brunyee** - [bacon1097](https://github.com/bacon1097)
+**Ben Brunyee** - [bacon1097](https://github.com/bacon1097)
