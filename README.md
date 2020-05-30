@@ -17,6 +17,6 @@ Instructions on how to setup and use this tool.
 1. Run your application with appropriate options
     * Mac & Windows ```node Prospect_Searcher.js -seachTerm gym -results 10```
 
-## Authors
+## Author
 
 **Ben Brunyee** - [bacon1097](https://github.com/bacon1097)
