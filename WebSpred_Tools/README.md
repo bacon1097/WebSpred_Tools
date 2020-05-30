@@ -11,11 +11,18 @@ Instructions on how to setup and use this tool.
     * Mac ```terminal (bash)```
     * Windows ```cmd```
 1. ```cd``` into the directory of your downloaded version of this project.
-    * Mac & Windows ```cd Downloads``` (default directory)
+    * Mac & Windows ```cd Downloads/WebSpred_Tools``` (default directory)
 1. Install all dependencies
     * Mac & Windows ```npm install```
 1. Run your application with appropriate options
-    * Mac & Windows ```node Prospect_Searcher.js -seachTerm gym -results 10```
+    * Mac & Windows ```node Prospect_Searcher.js --seachTerm gym --results 10```
+
+## Command Line Options
+
+* ```--searchTerm``` = The search query you want to throw to Google.
+* ```--results``` = The number of results you want to return (The higher the number, the longer it will take).
+* ```--time``` = Valid options are:"d", "w", "m" for day, week, month. This will only get results of websites
+that have been uploaded to google in the recent time-frame. (Good for finding new businesses).
 
 ## Author
 

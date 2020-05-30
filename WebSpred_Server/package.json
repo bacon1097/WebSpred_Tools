@@ -9,7 +9,9 @@
   },
   "author": "Ben Brunyee",
   "license": "ISC",
-  "dependencies": {},
+  "dependencies": {
+    "fs": "0.0.1-security"
+  },
   "devDependencies": {
     "body-parser": "^1.19.0",
     "cheerio": "^1.0.0-rc.3",
