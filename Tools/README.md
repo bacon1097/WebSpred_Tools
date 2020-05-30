@@ -15,7 +15,7 @@ Instructions on how to setup and use this tool.
 1. Install all dependencies
     * Mac & Windows ```npm install```
 1. Run your application with appropriate options
-    * Mac & Windows ```node Prospect_Searcher.js --seachTerm gym --results 10```
+    * Mac & Windows ```node Prospect_Searcher.js --searchTerm gym --results 10```
 
 ## Command Line Options
 
