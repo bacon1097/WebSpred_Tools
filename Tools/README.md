@@ -6,7 +6,8 @@ and contact information. This is done by using a google search with multiple fet
 Instructions on how to setup and use this tool.
 
 1. Install [NodeJS](https://nodejs.org/en/)
-1. Download this repository from [GitHub]()
+1. Download this repository from [GitHub](https://github.com/bacon1097/WebSpred_Tools)
+1. Unzip file
 1. Open a terminal
     * Mac ```terminal (bash)```
     * Windows ```cmd```
