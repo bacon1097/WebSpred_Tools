@@ -46,7 +46,7 @@ async function GetProspects(searchTerm, results, time) {
   var jsonResponse = {status: "success", body: {results: []}};
 
   if (!searchTerm) {
-    console.log(JSON.stringify({status: "failed", body: {}, msg: "Provide a search term with 'searchTerm=query'"}, null, 2));
+    console.log(JSON.stringify({status: "failed", body: {msg: "Provide a search term with 'searchTerm=query'"}}, null, 2));
     return;
   }
 
@@ -59,14 +59,14 @@ async function GetProspects(searchTerm, results, time) {
   var searchGoogle = CheckGoogleBotLock();
 
   if (!searchGoogle) {    // If we haven't waited at least an hour, dont search
-    console.log(JSON.stringify({status: "failed", body: {results: [], msg: "Please wait 1 hour till searching again"}}, null, 2));
+    console.log(JSON.stringify({status: "failed", body: {msg: "Please wait 1 hour till searching again"}}, null, 2));
     return;
   }
 
   console.log("Getting google searches: " + googleSearchString);
   var links = await SearchGoogle(googleSearchString);
   if (links.status === "failed") {
-    console.log(JSON.stringify({status: "failed", body: {results: [], msg: links.body.msg}}, null, 2));
+    console.log(JSON.stringify({status: "failed", body: {msg: links.body.msg}}, null, 2));
     return;
   }
 
@@ -75,16 +75,23 @@ async function GetProspects(searchTerm, results, time) {
     links = links.slice(0, results);
   }
   else {
-    console.log(JSON.stringify({status: "failed", body: {results: [], msg: "Cannot return more than 100 websites"}}, null, 2))
+    console.log(JSON.stringify({status: "failed", body: {msg: "Cannot return more than 100 websites"}}, null, 2))
     return;
   }
 
-  for (var link of links) {
-      console.log(`Getting info on: ${link}`);
-      var result = await CreateJsonInfo(link);
-      if (result.status === "success") {
-        jsonResponse.body.results.push(result.body);
-      }
+  if (links.length > 0) {
+    for (var link of links) {
+        console.log(`Getting info on: ${link}`);
+        var result = await CreateJsonInfo(link);
+        if (result.status === "success") {
+          jsonResponse.body.results.push(result.body);
+        }
+    }
+  }
+  else {
+    jsonResponse.body.msg = "Could not find any links";
+    console.log(JSON.stringify(jsonResponse, null, 2));
+    return;
   }
 
   console.log(JSON.stringify(jsonResponse, null, 2));
@@ -110,7 +117,7 @@ function SearchGoogle(link) {
     }
 
     var botDetection = $("#infoDiv");   // Check for Google's bot detection
-    if (botDetection) {
+    if (botDetection.length) {
       var text = botDetection.text();
       if (text.match(/This page appears when Google automatically detects requests/)) {
         fs.writeFileSync("GoogleBotLock", new Date(new Date().getTime()));    // Write current time and date to file
@@ -120,8 +127,8 @@ function SearchGoogle(link) {
 
     var links = [];
 
-    var results = $("div[role=heading]").parent().parent().find("a");   // Get the results from the page
-    if (results) {
+    var results = $("h3").parent("a");   // Get the results from the page
+    if (results.length) {
       results.each((i, elem) => {
         var href = $(elem).attr("href");
         if (href) {
@@ -134,11 +141,16 @@ function SearchGoogle(link) {
       reject({status: "failed", body: {msg: "Could not get search results"}});
     }
 
-    jsonResponse.body = links;
-    resolve(jsonResponse);
+    if (links.length > 0) {
+      jsonResponse.body = links;
+      resolve(jsonResponse);
+    }
+    else {
+      reject({status: "failed", body: {msg: "No results found"}});
+    }
   }).catch(err => {
     console.log(err);
-    return({status: "failed", body: {msg: err}});
+    return({status: "failed", body: {msg: err.body.msg}});
   });
 }
 
@@ -197,12 +209,12 @@ function CreateJsonInfo(link) {
         return $(elem).attr("href").match(/facebook\.com\/(?!sharer)/);
     })).first();
 
-    if (facebook) {
+    if (facebook.length) {
       var href = facebook.attr("href");
       if (href) {
         json[identifier].facebookPage.link = href.replace(/(\.com\/.*?)\/.*/, "$1");    // Replace everything after the identifier
         json[identifier].facebookPage.status = "success";
-        // promises.push(CheckFacebook(json[identifier].facebookPage.link));
+        promises.push(CheckFacebook(json[identifier].facebookPage.link));
       }
     }
 
@@ -211,12 +223,12 @@ function CreateJsonInfo(link) {
       return $(elem).attr("href").match(/twitter\.com\/(?!intent)/);
     })).first();
 
-    if (twitter) {
+    if (twitter.length) {
       var href = twitter.attr("href");
       if (href) {
         json[identifier].twitterPage.link = href.replace(/(\.com\/.*?)\/.*/, "$1");   // Replace everything after the identifier
         json[identifier].twitterPage.status = "success"
-        // promises.push(CheckTwitter(json[identifier].twitterPage.link));
+        promises.push(CheckTwitter(json[identifier].twitterPage.link));
       }
     }
 
@@ -225,12 +237,12 @@ function CreateJsonInfo(link) {
       return $(elem).attr("href").match(/instagram\.com\/.*/);
     })).first();
 
-    if (instagram) {
+    if (instagram.length) {
       var href = instagram.attr("href");
       if (href) {
         json[identifier].instagramPage.link = href.replace(/(\.com\/.*?)\/.*/, "$1");   // Replace everything after the identifier
         json[identifier].instagramPage.status = "success"
-        // promises.push(CheckInsta(json[identifier].instagramPage.link));
+        promises.push(CheckInsta(json[identifier].instagramPage.link));
       }
     }
 
@@ -240,7 +252,7 @@ function CreateJsonInfo(link) {
       return link.match(/contact/i);
     })).first();
 
-    if (contactPageElem) {
+    if (contactPageElem.length) {
       var contactPage = contactPageElem.attr("href");
       if (contactPage) {
         json[identifier].contactPage.link = link + "/" + contactPage.replace(/(.*?\/\/.*?\/)|(^\/)/, "");
@@ -248,19 +260,35 @@ function CreateJsonInfo(link) {
       }
     }
 
-    var [contactInfo] = await Promise.all(promises);
-    if (contactInfo) {
-      if (contactInfo.status === "success") {
-        json[identifier].contactPage = {...json[identifier].contactPage, ...contactInfo.body};
+    var contactInfo = await Promise.all(promises);
+    if (contactInfo.length == 4) {
+      if (contactInfo[0].status === "success") {
+        json[identifier].facebookPage = {...json[identifier].facebookPage, ...contactInfo[0].body};
       }
-      json[identifier].contactPage.status = contactInfo.status;
+
+      if (contactInfo[1].status === "success") {
+        json[identifier].twitterPage = {...json[identifier].twitterPage, ...contactInfo[1].body};
+      }
+
+      if (contactInfo[2].status === "success") {
+        json[identifier].instagramPage = {...json[identifier].instagramPage, ...contactInfo[2].body};
+      }
+
+      if (contactInfo[3].status === "success") {
+        json[identifier].contactPage = {...json[identifier].contactPage, ...contactInfo[3].body};
+      }
+
+      json[identifier].facebookPage.status = contactInfo[0].status;
+      json[identifier].twitterPage.status = contactInfo[1].status;
+      json[identifier].instagramPage.status = contactInfo[2].status;
+      json[identifier].contactPage.status = contactInfo[3].status;
     }
 
     jsonResponse.body = json;
     resolve(jsonResponse);
   }).catch(err => {
     console.log(err);
-    return({status: "failed", body: {msg: err}});
+    return({status: "failed", body: {msg: err.body.msg}});
   });
 }
 
@@ -294,7 +322,7 @@ function GetContactInfo(link) {
       }
     })).first();
 
-    if (contactNumberElem) {
+    if (contactNumberElem.length) {
       var contactNumber = $(contactNumberElem).text().replace(/\D/, "");
       if (contactNumber) {
         jsonResponse.body.number = contactNumber;
@@ -306,7 +334,7 @@ function GetContactInfo(link) {
       return $(elem).text().match(/\s\w+@\w+[\.\w]+\s/);
     })).first();
 
-    if (emailElem) {
+    if (emailElem.length) {
       var email = $(emailElem).text();
       if (email) {
         jsonResponse.body.email = email.match(/\s(\w+@\w+[\.\w]+)\s/)[1];
@@ -316,10 +344,189 @@ function GetContactInfo(link) {
     resolve(jsonResponse);
   }).catch(err => {
     console.log(err);
-    return({status: "failed", body: {msg: err}});
+    return({status: "failed", body: {msg: err.body.msg}});
   });
 }
 
+/*
+Get information on a Facebook page.
+*/
+function CheckFacebook(link) {
+  return new Promise(async (resolve, reject) => {
+    var jsonResponse = {status: "success", body: {
+      likes: 0,
+      followers: 0,
+      pageTitle: ""
+    }};
+
+    // Get HTML of website
+    var html, $;
+    try {
+      html = await (await fetch(link)).text();
+      $ = cheerio.load(html);
+    }
+    catch (err) {
+      reject({status: "failed", body: {msg: err}});
+    }
+
+    var textElems = $("body *").filter((i, elem) => {
+      return $(elem).text();
+    });
+
+    // Getting the likes of the Facebook page
+    var likes = (textElems.filter((i, elem) => {
+      if ($(elem).is("div")) {
+        return $(elem).text().match(/people like this/);
+      }
+      else {
+        return false;
+      }
+    })).last();
+    if (likes.length) {
+      likes = $(likes).text().replace(/\D/g, "");
+      jsonResponse.body.likes = parseInt(likes);
+    }
+
+    // Getting the followers of the Facebook page
+    var followers = (textElems.filter((i, elem) => {
+      if ($(elem).is("div")) {
+        return $(elem).text().match(/people follow this/);
+      }
+      else {
+        return false;
+      }
+    })).last();
+    if (followers.length) {
+      followers = $(followers).text().replace(/\D/g, "");
+      jsonResponse.body.followers = parseInt(followers);
+    }
+
+    // Getting the name of the Facebook page
+    var title = ($("h1 > span").filter((i, elem) => {
+      return $(elem).text();
+    })).first();
+    if (title.length) {
+      jsonResponse.body.pageTitle = title.text();
+    }
+
+    resolve(jsonResponse);
+  }).catch(err => {
+    console.log(err);
+    return({status: "failed", body: {msg: err.body.msg}});
+  })
+}
+
+/*
+Get information on a Twitter page.
+*/
+function CheckTwitter(link) {
+  return new Promise(async (resolve, reject) => {
+    var jsonResponse = {status: "success", body: {
+      followers: 0,
+      following: 0
+    }};
+
+    // Get HTML of website
+    console.log(link);
+    var html, $;
+    try {
+      html = await (await fetch(link)).text();    // Twitter is rejecting request
+      $ = cheerio.load(html);
+    }
+    catch (err) {
+      reject({status: "failed", body: {msg: err}});
+    }
+
+    // Get all anchor tags
+    var anchors = $("a");
+
+    // Get 'following' anchor tags
+    var followingTags = $(anchors).filter((i, elem) => {
+      if ($(elem).attr("href")) {
+        return $(elem).attr("href").match(/following/);
+      }
+      else {
+        return false;
+      }
+    });
+
+    // Get following
+    var following;
+    if (followingTags.length) {
+      following = $(followingTags).find("span");
+      if (following.length) {
+        following = $(following).filter((i, elem) => {
+          return $(elem).attr("data-count");
+        })
+      }
+    }
+
+    if (following) {
+      jsonResponse.body.following = following;
+    }
+
+    // Get 'followers' anchor tags
+    var followerTags = $(anchors).filter((i, elem) => {
+      if ($(elem).attr("href")) {
+        return $(elem).attr("href").match(/followers/);
+      }
+      else {
+        return false;
+      }
+    });
+
+    // Get followers
+    var followers;
+    if (followerTags.length) {
+      followers = $(followerTags).find("span");
+      if (followers.length) {
+        followers = $(followers).filter((i, elem) => {
+          return $(elem).attr("data-count");
+        })
+      }
+    }
+
+    if (followers) {
+      jsonResponse.body.followers = followers;
+    }
+
+    resolve(jsonResponse);
+  }).catch(err => {
+    console.log(err);
+    return({status: "failed", body: {msg: err.body.msg}});
+  })
+}
+
+/*
+Get information on an Instagram page.
+*/
+function CheckInsta(link) {
+  return new Promise(async (resolve, reject) => {
+    var jsonResponse = {status: "success", body: {
+      followers: 0,
+      following: 0
+    }};
+
+    // Get HTML of website
+    var html, $;
+    try {
+      html = await (await fetch(link)).text();
+      $ = cheerio.load(html);
+    }
+    catch (err) {
+      reject({status: "failed", body: {msg: err}});
+    }
+
+    resolve(jsonResponse);
+  }).catch(err => {
+    console.log(err);
+    return({status: "failed", body: {msg: err.body.msg}});
+  })
+}
+
+/*
+Check to see if Google has temporarily banned anymore google searches
+*/
 function CheckGoogleBotLock() {
   var lock = "GoogleBotLock";
   if (fs.existsSync(lock)) {    // If file exists
@@ -331,45 +538,6 @@ function CheckGoogleBotLock() {
     return false;   // If 1 hour hasn't passed then don't allow searching
   }
   return true;    // If file doesn't exist then allow for searching
-}
-
-function CheckFacebook(link) {
-  return new Promise(async (resolve, reject) => {
-    var jsonResponse = {status: "success", body: {
-      likes: 0,
-      followers: 0
-    }};
-
-  }).catch(err => {
-    console.log(err);
-    return({status: "failed", body: {msg: err}});
-  })
-}
-
-function CheckTwitter(link) {
-  return new Promise(async (resolve, reject) => {
-    var jsonResponse = {status: "success", body: {
-      followers: 0,
-      following: 0
-    }};
-
-  }).catch(err => {
-    console.log(err);
-    return({status: "failed", body: {msg: err}});
-  })
-}
-
-function CheckInsta(link) {
-  return new Promise(async (resolve, reject) => {
-    var jsonResponse = {status: "success", body: {
-      followers: 0,
-      following: 0
-    }};
-
-  }).catch(err => {
-    console.log(err);
-    return({status: "failed", body: {msg: err}});
-  })
 }
 
 //------------------------------------------------------------------------------------//
