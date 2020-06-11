@@ -73,14 +73,21 @@ def GetGoogleResults(searchString, results=10, time=""):
 def GetInfo(collection):
   for website in collection:
     info = {        # Set basic info for each website
-      "Facebook Page": {"result": "failed"},
-      "Twitter Page": {"result": "failed"},
-      "Instagram Page": {"result": "failed"},
-      "Contact Info": {"result": "failed"},
+      "Facebook Page": {},
+      # "Twitter Page": {}, Disabling Twitter as it has problems
+      "Instagram Page": {},
+      "Contact Info": {},
       "website": collection[website],
       "result": "failed"
     }
-    soup = BeautifulSoup(requests.get(info["website"]).text, "html.parser")
+    soup = ""
+    try:
+      soup = BeautifulSoup(requests.get(info["website"]).text, "html.parser")
+      info["result"] = "success"
+    except Exception as e:
+      log.error(e)
+      continue
+
 
     # Find facebook webpage
     facebook = soup.find_all('a', href=re.compile(r"facebook\.com\/(?!sharer)"))
@@ -89,12 +96,13 @@ def GetInfo(collection):
     else:
       info["Facebook Page"]["msg"] = "Could not find page"
 
+    # Disabling Twitter as it has run into problems
     # Find twitter webpage
-    twitter = soup.find_all('a', href=re.compile(r"twitter\.com\/(?!intent)"))
-    if (twitter):
-      info["Twitter Page"] = CheckTwitter(str(twitter[0]["href"]))
-    else:
-      info["Twitter Page"]["msg"] = "Could not find page"
+    # twitter = soup.find_all('a', href=re.compile(r"twitter\.com\/(?!intent)"))
+    # if (twitter):
+    #   info["Twitter Page"] = CheckTwitter(str(twitter[0]["href"]))
+    # else:
+    #   info["Twitter Page"]["msg"] = "Could not find page"
 
     # Find instagram webpage
     instagram = soup.find_all('a', href=re.compile(r"instagram\.com\/.*"))
@@ -109,8 +117,12 @@ def GetInfo(collection):
       try:
         contactLink = info["website"] + "/" + re.sub(r"((.*?)\/\/(.*?)\/)|^\/", r"", str(contactPage[0]["href"]))       # Obtain contact link
         info["Contact Info"] = GetContactInfo(contactLink)
-      except Exception:
+      except Exception as e:
+        info["Contact Info"] = "failed"
+        log.error(e)
         pass
+    else:
+      info["Contact Info"] = "failed"
     collection[website] = info
   log.info(json.dumps(collection, indent=4))
 
@@ -267,11 +279,17 @@ def GetContactInfo(contactLink):
   info = {
     "number": 0,
     "email": 0,
+    "result": "failed"
   }
 
   # Get link html data
   r = requests.get(contactLink)
-  soup = BeautifulSoup(r.text, "html.parser")
+  soup = ""
+  try:
+    soup = BeautifulSoup(r.text, "html.parser")
+  except Exception as e:
+    log.error(e)
+    return info
 
   # Example number 01202 123456 | 01202 123 456 | 01202123456
   contactNumbers = soup.find_all(text=re.compile(r".*\d[\d\s]{10,12}.*"))
@@ -289,8 +307,7 @@ def GetContactInfo(contactLink):
     if (elem.text):
       match = re.search(r"\s(\w+@\w+[\.\w]+)\s", elem.text)
       if (match):
-        info["email"] = group(1)
-
+        info["email"] = match.group(1)
   return info
 
 
