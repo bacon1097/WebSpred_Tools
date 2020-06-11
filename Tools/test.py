@@ -279,6 +279,7 @@ def GetContactInfo(contactLink):
   info = {
     "number": 0,
     "email": 0,
+    "link": "",
     "result": "failed"
   }
 
@@ -287,6 +288,8 @@ def GetContactInfo(contactLink):
   soup = ""
   try:
     soup = BeautifulSoup(r.text, "html.parser")
+    info["link"] = contactLink
+    info["result"] = "success"
   except Exception as e:
     log.error(e)
     return info
@@ -300,7 +303,6 @@ def GetContactInfo(contactLink):
       number = re.sub(r"\D", "", number.strip())
       if (len(number) == 11):
         info["number"] = number[:5] + " " + number[5:]
-        info["result"] = "success"
 
   # Get email
   for elem in soup.select("body > *"):
