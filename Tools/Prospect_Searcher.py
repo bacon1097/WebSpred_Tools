@@ -52,11 +52,15 @@ def Main():
     infoArray.append(info)
   log.info(json.dumps(infoArray, indent=4))
   while True:
-    response = int(input("What would you like to do with this information?\n" +
-      "1. Save to .xls file\n" +
-      "2. Save to .txt file\n" +
-      "3. Send emails\n" +
-      "4. Exit\n"))
+    response = 0
+    try:
+      response = int(input("What would you like to do with this information?\n" +
+        "1. Save to .xls file\n" +
+        "2. Save to .txt file\n" +
+        "3. Send emails\n" +
+        "4. Exit\n"))
+    except Exception:
+      continue
     if (response == 1):
       ExportXls(infoArray)
       break
@@ -289,7 +293,7 @@ def GetInfo(link):
       log.error(e)
       pass
   else:
-    info["Contact Info"] = "failed"
+    info["Contact Info"]["result"] = "failed"
   companyName = re.sub(r"^.*?//", "", link)
   companyName = re.sub(r"^.*?www\.", "", companyName)
   companyName = re.sub(r"\..*$", "", companyName)
