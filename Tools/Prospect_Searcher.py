@@ -285,7 +285,7 @@ def GetInfo(link):
       contactLink = info["website"] + "/" + re.sub(r"((.*?)\/\/(.*?)\/)|^\/", r"", str(contactPage[0]["href"]))       # Obtain contact link
       info["Contact Info"] = GetContactInfo(contactLink)
     except Exception as e:
-      info["Contact Info"] = "failed"
+      info["Contact Info"]["result"] = "failed"
       log.error(e)
       pass
   else:
