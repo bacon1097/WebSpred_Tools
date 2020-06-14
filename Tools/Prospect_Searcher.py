@@ -250,7 +250,7 @@ def GetInfo(link):
   }
   soup = ""
   try:
-    soup = BeautifulSoup(requests.get(info["website"]).text, "html.parser")
+    soup = BeautifulSoup(requests.get(info["website"], timeout=2).text, "html.parser")
     info["result"] = "success"
   except Exception as e:
     log.error(e)
@@ -315,7 +315,7 @@ def CheckFacebook(link):
   soup = ""
 
   try:
-    soup = BeautifulSoup(requests.get(link).text, "html.parser")
+    soup = BeautifulSoup(requests.get(link, timeout=2).text, "html.parser")
     info["link"] = link
     info["result"] = "success"
   except Exception as e:
@@ -358,14 +358,12 @@ def CheckTwitter(link):
   soup = ""
 
   try:
-    soup = BeautifulSoup(requests.get(link).text, "html.parser")
+    soup = BeautifulSoup(requests.get(link, timeout=2).text, "html.parser")
     info["result"] = "success"
   except Exception as e:
     info["result"] = "failed"
     log.error(e)
     return info
-
-  print(requests.get(link).text)
 
   try:
     pageName = soup.find_all("h2")[2].find("b")
@@ -404,7 +402,7 @@ def CheckInsta(link):
   soup = ""
 
   try:
-    soup = BeautifulSoup(requests.get(link).text, "html.parser")
+    soup = BeautifulSoup(requests.get(link, timeout=2).text, "html.parser")
     info["link"] = link
     info["result"] = "success"
   except Exception as e:
@@ -458,10 +456,9 @@ def GetContactInfo(contactLink):
   }
 
   # Get link html data
-  r = requests.get(contactLink)
   soup = ""
   try:
-    soup = BeautifulSoup(r.text, "html.parser")
+    soup = BeautifulSoup(requests.get(contactLink, timeout=2).text, "html.parser")
     info["link"] = contactLink
     info["result"] = "success"
   except Exception as e:
