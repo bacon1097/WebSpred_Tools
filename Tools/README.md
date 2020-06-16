@@ -22,7 +22,7 @@ Instructions on how to setup and use this tool.
 * ```--searchTerm | -s``` = The search query you want to throw to Google. (Required)
 * ```--results | -r``` = The number of results you want to return. The higher the number, the longer it will take. (Optional. Default = 10)
 * ```--time | -t``` = Valid options are:"d", "w", "m" for day, week, month. This will only get results of websites
-that have been uploaded to google in the recent time-frame. (Good for finding new businesses). (Optional)
+that have been uploaded to google in the recent time-frame. This is good for finding new businesses. (Optional)
 * ``` --socials | -o``` = Whether to get social information such as Facebook & Instagram. (Optional. Default = True)
 
 ## Additional Information
