@@ -19,11 +19,11 @@ Instructions on how to setup and use this tool.
     * Mac & Windows ```python Prospect_Searcher.py --searchTerm gym --results 10 --socials True --time m```
 
 ## Command Line Options
-* ```--searchTerm | -s``` = The search query you want to throw to Google.
-* ```--results | -r``` = The number of results you want to return (The higher the number, the longer it will take).
+* ```--searchTerm | -s``` = The search query you want to throw to Google. (Required)
+* ```--results | -r``` = The number of results you want to return. The higher the number, the longer it will take. (Optional. Default = 10)
 * ```--time | -t``` = Valid options are:"d", "w", "m" for day, week, month. This will only get results of websites
-that have been uploaded to google in the recent time-frame. (Good for finding new businesses).
-* ``` --socials | -o``` = Whether to get social information such as Facebook & Instagram.
+that have been uploaded to google in the recent time-frame. (Good for finding new businesses). (Optional)
+* ``` --socials | -o``` = Whether to get social information such as Facebook & Instagram. (Optional. Default = True)
 
 ## Additional Information
 Logs are saved in a file called ```Prospect_Searcher.log```. If the script fails. Do not delete this log as it will
