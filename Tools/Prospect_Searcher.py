@@ -2,11 +2,8 @@
 # Modules
 #------------------------------------------------------------------------------------#
 
-import requests, argparse, re, json, xlwt, os, threading
-import logging
+import requests, argparse, re, json, xlwt, os, threading, logging
 from bs4 import BeautifulSoup
-from googlesearch import search
-from googleapiclient.discovery import build
 from queue import Queue
 
 #------------------------------------------------------------------------------------#
@@ -24,7 +21,7 @@ log.addHandler(sh)
 log.addHandler(fh)
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--search", "-s", metavar="STRING", required=True, help="Enter a search term")
+parser.add_argument("--searchTerm", "-s", metavar="STRING", required=True, help="Enter a search term")
 parser.add_argument("--results", "-r", metavar="INT", required=False, type=int, default=4, help="How " +\
   "many results do you want. Up to 100. Results may not be exactly as specified due to duplicate links " +\
   "provided by Google.")
@@ -42,7 +39,7 @@ else:
   log.info("No number of results specified, will retrieve 10")
   args.results = 10
 
-searchString = args.search
+searchString = args.searchTerm
 results = args.results
 time = args.time
 socialsFlag = args.socials
