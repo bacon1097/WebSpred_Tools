@@ -2,21 +2,23 @@
 # Modules
 #------------------------------------------------------------------------------------#
 
-import requests, argparse, re, json, xlwt, os
+import requests, argparse, re, json, xlwt, os, threading
 import logging as log
 from bs4 import BeautifulSoup
 from googlesearch import search
 from googleapiclient.discovery import build
+from queue import Queue
 
 #------------------------------------------------------------------------------------#
 # Variables & Config
 #------------------------------------------------------------------------------------#
 
-log.basicConfig(level=log.DEBUG, format="%(levelname)s : %(asctime)s : %(message)s", datefmt="%I:%M:%S %p")
+log.basicConfig(filename="Prospect_Searcher.log", filemode="w", level=log.DEBUG, format="%(levelname)s : %(asctime)s : %(message)s", datefmt="%I:%M:%S %p")
 parser = argparse.ArgumentParser()
 parser.add_argument("--search", "-s", metavar="STRING", required=True, help="Enter a search term")
 parser.add_argument("--results", "-r", metavar="INT", required=False, type=int, default=4, help="How " +\
-  "many results do you want. Up to 100")
+  "many results do you want. Up to 100. Results may not be exactly as specified due to duplicate links " +\
+  "provided by Google.")
 parser.add_argument("--time", "-t", metavar="STRING", required=False, help="Returns google indexes " +\
   "a certain perdiod. d = past day, w = past week, m = past month")
 parser.add_argument("--socials", "-o", metavar="BOOLEAN", required=False, help="Whether to return social " +\
@@ -45,12 +47,32 @@ def Main():
   links = GetGoogleResults(searchString, results, time)
   links = GetUnique(links)[:results]    # Only use the number of results requested
   infoArray = []
+  threadArray = []
+  que = Queue()
+
   for link in links:
     log.info(f"Getting information on {link}")
-    info = GetInfo(link)
+    # info = GetInfo(link)
+    thread = threading.Thread(target=lambda q, arg1: q.put(GetInfo(arg1)),   # Create a thread and put the result to a queue
+      args=(que, link), daemon=True)
+    log.debug("Added new thread for: " + link)
+    thread.start()
+    threadArray.append(thread)
+    log.debug("Number of active threads: " + str(threading.activeCount()))
+
+  for thread in threadArray:    # Wait for all threads to complete
+    thread.join()
+
+  log.debug("All threads complete")
+  log.debug("New number of active threads: " + str(threading.active_count()))
+
+  while not que.empty():    # Append all information gathered by threads to an array
+    info = que.get()
     log.debug("Appending to array: " + str(info))
     infoArray.append(info)
+
   log.info(json.dumps(infoArray, indent=4))
+
   while True:
     response = 0
     try:
@@ -61,8 +83,16 @@ def Main():
         "4. Exit\n"))
     except Exception:
       continue
+
     if (response == 1):
-      ExportXls(infoArray)
+      fileName = input("Enter name of file to be saved (Default = 'Prospects.xls')\n")
+      if (fileName):
+        fileName = re.sub(r"\.xls$", "", fileName.strip())
+        fileName += ".xls"
+      else:
+        fileName = "Prospects.xls"
+      ExportXls(infoArray, fileName)
+      log.info(f"{fileName} has been saved")
       break
     elif (response == 2):
       break
@@ -139,67 +169,70 @@ def ExportXls(data, fileName="Prospects.xls"):
               counter = i + 2
               sheet.write(rowCounter, counter, na)
         elif (key == "Facebook Page"):
-          if (prospectData[key]["result"] == "success"):
-            if (prospectData[key]["link"]):
-              sheet.write(rowCounter, 5, prospectData[key]["link"])
-            else:
-              sheet.write(rowCounter, 5, na)
+          if (socialsFlag.lower() != "false"):
+            if (prospectData[key]["result"] == "success"):
+              if (prospectData[key]["link"]):
+                sheet.write(rowCounter, 5, prospectData[key]["link"])
+              else:
+                sheet.write(rowCounter, 5, na)
 
-            if (prospectData[key]["page name"]):
-              sheet.write(rowCounter, 6, prospectData[key]["page name"])
-            else:
-              sheet.write(rowCounter, 6, na)
+              if (prospectData[key]["page name"]):
+                sheet.write(rowCounter, 6, prospectData[key]["page name"])
+              else:
+                sheet.write(rowCounter, 6, na)
 
-            if (prospectData[key]["likes"]):
-              sheet.write(rowCounter, 7, prospectData[key]["likes"])
-            else:
-              sheet.write(rowCounter, 7, na)
+              if (prospectData[key]["likes"]):
+                sheet.write(rowCounter, 7, prospectData[key]["likes"])
+              else:
+                sheet.write(rowCounter, 7, na)
 
-            if (prospectData[key]["followers"]):
-              sheet.write(rowCounter, 8, prospectData[key]["followers"])
+              if (prospectData[key]["followers"]):
+                sheet.write(rowCounter, 8, prospectData[key]["followers"])
+              else:
+                sheet.write(rowCounter, 8, na)
             else:
-              sheet.write(rowCounter, 8, na)
-          else:
-            for i in range(4):
-              counter = i + 5
-              sheet.write(rowCounter, counter, na)
+              for i in range(4):
+                counter = i + 5
+                sheet.write(rowCounter, counter, na)
         elif (key == "Instagram Page"):
-          if (prospectData[key]["result"] == "success"):
-            if (prospectData[key]["link"]):
-              sheet.write(rowCounter, 9, prospectData[key]["link"])
-            else:
-              sheet.write(rowCounter, 9, na)
+          if (socialsFlag.lower() != "false"):
+            if (prospectData[key]["result"] == "success"):
+              if (prospectData[key]["link"]):
+                sheet.write(rowCounter, 9, prospectData[key]["link"])
+              else:
+                sheet.write(rowCounter, 9, na)
 
-            if (prospectData[key]["username"]):
-              sheet.write(rowCounter, 10, prospectData[key]["username"])
-            else:
-              sheet.write(rowCounter, 10, na)
+              if (prospectData[key]["username"]):
+                sheet.write(rowCounter, 10, prospectData[key]["username"])
+              else:
+                sheet.write(rowCounter, 10, na)
 
-            if (prospectData[key]["followers"]):
-              sheet.write(rowCounter, 11, prospectData[key]["followers"])
-            else:
-              sheet.write(rowCounter, 11, na)
+              if (prospectData[key]["followers"]):
+                sheet.write(rowCounter, 11, prospectData[key]["followers"])
+              else:
+                sheet.write(rowCounter, 11, na)
 
-            if (prospectData[key]["following"]):
-              sheet.write(rowCounter, 12, prospectData[key]["following"])
+              if (prospectData[key]["following"]):
+                sheet.write(rowCounter, 12, prospectData[key]["following"])
+              else:
+                sheet.write(rowCounter, 12, na)
             else:
-              sheet.write(rowCounter, 12, na)
-          else:
-            for i in range(4):
-              counter = i + 9
-              sheet.write(rowCounter, counter, na)
-
+              for i in range(4):
+                counter = i + 9
+                sheet.write(rowCounter, counter, na)
     else:
       for i in range(13):
-        sheet.write(rowCounter, i, na)
+        sheet.write(rowCounter, i + 1, na)
     rowCounter += 1
 
   # Save file
-  try:
-    book.save(fileName)
-    log.info(f"{fileName} has been saved")
-  except Exception as e:
-    log.error(e)
+  while True:
+    try:
+      book.save(fileName)
+      break
+    except Exception as e:
+      log.error(e)
+      input("An error occurred when trying to save the file, press enter to try again?\n")
 
 #------------------------------------------------------------------------------------#
 # Get websites from google
@@ -240,21 +273,32 @@ def GetUnique(links):
 #------------------------------------------------------------------------------------#
 
 def GetInfo(link):
-  info = {        # Set basic info for each website
-    "Facebook Page": {},
-    # "Twitter Page": {}, Disabling Twitter as it has problems
-    "Instagram Page": {},
-    "Contact Info": {},
-    "website": link,
-    "result": "failed"
+
+  # Get company name from link
+  companyName = re.sub(r"^.*?//", "", link)
+  companyName = re.sub(r"^.*?www\.", "", companyName)
+  companyName = re.sub(r"\..*$", "", companyName)
+
+  dataObject = {
+    companyName: {        # Set basic info for each website
+      "Facebook Page": {},
+      # "Twitter Page": {}, Disabling Twitter as it has problems
+      "Instagram Page": {},
+      "Contact Info": {},
+      "website": link,
+      "result": "failed"
+    }
   }
+
+  info = dataObject[companyName]    # For easier modifications
+
   soup = ""
   try:
-    soup = BeautifulSoup(requests.get(info["website"], timeout=2).text, "html.parser")
+    soup = BeautifulSoup(requests.get(info["website"], timeout=5).text, "html.parser")
     info["result"] = "success"
   except Exception as e:
     log.error(e)
-    return info
+    return dataObject
 
   if (socialsFlag.lower() != "false"):
     # Find facebook webpage
@@ -294,11 +338,7 @@ def GetInfo(link):
       pass
   else:
     info["Contact Info"]["result"] = "failed"
-  companyName = re.sub(r"^.*?//", "", link)
-  companyName = re.sub(r"^.*?www\.", "", companyName)
-  companyName = re.sub(r"\..*$", "", companyName)
-  info = {companyName: info}    # Assign the object the company name as an identifier
-  return info
+  return dataObject
 
 #------------------------------------------------------------------------------------#
 # Get details from their facebook account
@@ -315,7 +355,7 @@ def CheckFacebook(link):
   soup = ""
 
   try:
-    soup = BeautifulSoup(requests.get(link, timeout=2).text, "html.parser")
+    soup = BeautifulSoup(requests.get(link, timeout=5).text, "html.parser")
     info["link"] = link
     info["result"] = "success"
   except Exception as e:
@@ -358,7 +398,7 @@ def CheckTwitter(link):
   soup = ""
 
   try:
-    soup = BeautifulSoup(requests.get(link, timeout=2).text, "html.parser")
+    soup = BeautifulSoup(requests.get(link, timeout=5).text, "html.parser")
     info["result"] = "success"
   except Exception as e:
     info["result"] = "failed"
@@ -402,7 +442,7 @@ def CheckInsta(link):
   soup = ""
 
   try:
-    soup = BeautifulSoup(requests.get(link, timeout=2).text, "html.parser")
+    soup = BeautifulSoup(requests.get(link, timeout=5).text, "html.parser")
     info["link"] = link
     info["result"] = "success"
   except Exception as e:
@@ -458,7 +498,7 @@ def GetContactInfo(contactLink):
   # Get link html data
   soup = ""
   try:
-    soup = BeautifulSoup(requests.get(contactLink, timeout=2).text, "html.parser")
+    soup = BeautifulSoup(requests.get(contactLink, timeout=5).text, "html.parser")
     info["link"] = contactLink
     info["result"] = "success"
   except Exception as e:
@@ -478,7 +518,7 @@ def GetContactInfo(contactLink):
   # Get email
   for elem in soup.select("body > *"):
     if (elem.text):
-      match = re.search(r"\s(\w+@\w+[\.\w]+)\s", elem.text)
+      match = re.search(r"\s(\w+@\w+\.[\.\w]+)\s", elem.text)
       if (match):
         info["email"] = match.group(1)
   return info
