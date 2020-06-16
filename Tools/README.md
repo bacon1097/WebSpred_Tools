@@ -7,16 +7,16 @@ Instructions on how to setup and use this tool.
 
 1. Install [Python3](https://www.python.org/downloads/)
 1. Download this repository from [GitHub](https://github.com/bacon1097/WebSpred_Tools)
-1. Unzip file
+1. Unzip file if you're on Windows
 1. Open a terminal
     * Mac ```terminal (bash)```
     * Windows ```cmd```
 1. ```cd``` into the directory of your downloaded version of this project.
     * Mac & Windows ```cd Downloads/WebSpred_Tools/Tools``` (default directory)
 1. Install all python dependencies
-    * Mac & Windows ```pip3 install xlwt beautifulsoup4```
+    * Mac & Windows ```pip3 install xlwt beautifulsoup4 requests```
 1. Run your application with appropriate options
-    * Mac & Windows ```python Prospect_Searcher.py --searchTerm gym --results 10 --socials True --time m```
+    * Mac & Windows ```python3 Prospect_Searcher.py --searchTerm news --results 10 --socials True --time m```
 
 ## Command Line Options
 * ```--searchTerm | -s``` = The search query you want to throw to Google. (Required)
