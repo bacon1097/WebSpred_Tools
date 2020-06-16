@@ -3,7 +3,7 @@
 #------------------------------------------------------------------------------------#
 
 import requests, argparse, re, json, xlwt, os, threading
-import logging as log
+import logging
 from bs4 import BeautifulSoup
 from googlesearch import search
 from googleapiclient.discovery import build
@@ -13,7 +13,16 @@ from queue import Queue
 # Variables & Config
 #------------------------------------------------------------------------------------#
 
-log.basicConfig(filename="Prospect_Searcher.log", filemode="w", level=log.DEBUG, format="%(levelname)s : %(asctime)s : %(message)s", datefmt="%I:%M:%S %p")
+fh = logging.FileHandler("Prospect_Searcher.log", "w")
+sh = logging.StreamHandler()
+formatter = logging.Formatter("%(levelname)s : %(asctime)s : %(message)s", datefmt="%I:%M:%S %p")
+sh.setFormatter(formatter)
+fh.setFormatter(formatter)
+log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
+log.addHandler(sh)
+log.addHandler(fh)
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--search", "-s", metavar="STRING", required=True, help="Enter a search term")
 parser.add_argument("--results", "-r", metavar="INT", required=False, type=int, default=4, help="How " +\
@@ -81,7 +90,9 @@ def Main():
         "2. Save to .txt file\n" +
         "3. Send emails\n" +
         "4. Exit\n"))
+      log.debug("Got response: " + str(response))
     except Exception:
+      log.debug("Invalid response entered: " + str(response))
       continue
 
     if (response == 1):
