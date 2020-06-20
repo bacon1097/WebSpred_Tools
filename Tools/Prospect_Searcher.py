@@ -197,84 +197,168 @@ def SaveToGoogle(data):
 
   # Write data
   na = "N/A"    # Identifier for empty data values
-  try:
-    for elem in filteredData:
-      log.debug("Next available row: " + str(availableRow))
-      log.debug(f"Saving: {list(elem.keys())[0]} to Google Sheets")
-      while True:
-        try:
-          masterSheet.add_rows(1)
-          break
-        except gspread.exceptions.APIError:
-          log.error("Quota exceeded, waiting 10 seconds")
-          time.sleep(10)
-      prospect = list(elem.keys())[0]
-      prospectData = elem[prospect]
 
-      update_cell(masterSheet, availableRow, 1, prospect)
+  for elem in filteredData:
+    prospect = list(elem.keys())[0]
+    log.debug("Next available row: " + str(availableRow))
+    log.debug(f"Saving: {prospect} to Google Sheets")
 
-      if (prospectData["result"] == "success"):
-        for key in prospectData:    # Every loop = different column
-          if (key == "website"):
-            masterSheet.update_cell(availableRow, 2, prospectData[key])
-          elif (key == "Contact Info"):
-            if (prospectData[key]["result"] == "success"):
-              link = prospectData[key]["link"] if (prospectData[key]["link"]) else na
-              update_cell(masterSheet, availableRow, 3, link)
+    data = [prospect]   # Put data in an array to make 1 write call
+    prospectData = elem[prospect]
+    if (prospectData["result"] == "success"):
+      data.append(prospectData["website"])
+      if (prospectData["Contact Info"]["result"] == "success"):
+        link = prospectData["Contact Info"]["link"] if (prospectData["Contact Info"]["link"]) else na
+        data.append(link)
 
-              email = prospectData[key]["email"] if (prospectData[key]["email"]) else na
-              update_cell(masterSheet, availableRow, 4, email)
+        email = prospectData["Contact Info"]["email"] if (prospectData["Contact Info"]["email"]) else na
+        data.append(email)
 
-              number = prospectData[key]["number"] if (prospectData[key]["number"]) else na
-              update_cell(masterSheet, availableRow, 5, number)
-            else:
-              for i in range(3):
-                counter = i + 2
-                masterSheet.update_cell(availableRow, counter, na)
-          elif (key == "Facebook Page"):
-            if (socialsFlag.lower() != "false"):
-              if (prospectData[key]["result"] == "success"):
-                link = prospectData[key]["link"] if (prospectData[key]["link"]) else na
-                update_cell(masterSheet, availableRow, 6, link)
-
-                pageName = prospectData[key]["page name"] if (prospectData[key]["page name"]) else na
-                update_cell(masterSheet, availableRow, 7, pageName)
-
-                likes = prospectData[key]["likes"] if (prospectData[key]["likes"]) else na
-                update_cell(masterSheet, availableRow, 8, likes)
-
-                followers = prospectData[key]["followers"] if (prospectData[key]["followers"]) else na
-                update_cell(masterSheet, availableRow, 9, followers)
-              else:
-                for i in range(4):
-                  counter = i + 6
-                  masterSheet.update_cell(availableRow, counter, na)
-          elif (key == "Instagram Page"):
-            if (socialsFlag.lower() != "false"):
-              if (prospectData[key]["result"] == "success"):
-
-                link = prospectData[key]["link"] if (prospectData[key]["link"]) else na
-                update_cell(masterSheet, availableRow, 10, link)
-
-                username = prospectData[key]["username"] if (prospectData[key]["username"]) else na
-                update_cell(masterSheet, availableRow, 11, username)
-
-                followers = prospectData[key]["followers"] if (prospectData[key]["followers"]) else na
-                update_cell(masterSheet, availableRow, 12, followers)
-
-                following = prospectData[key]["following"] if (prospectData[key]["following"]) else na
-                update_cell(masterSheet, availableRow, 13, following)
-              else:
-                for i in range(4):
-                  counter = i + 10
-                  masterSheet.update_cell(availableRow, counter, na)
+        number = prospectData["Contact Info"]["number"] if (prospectData["Contact Info"]["number"]) else na
+        data.append(number)
       else:
-        for i in range(12):
-          masterSheet.update_cell(availableRow, i + 2, na)
-      availableRow += 1
-  except gspread.exceptions.APIError:
-    log.error("Quota exceeded, waiting")
+        for i in range(3):
+          data.append(na)
 
+      if (socialsFlag.lower() != "false"):
+        if (prospectData["Facebook Page"]["result"] == "success"):
+          link = prospectData["Facebook Page"]["link"] if (prospectData["Facebook Page"]["link"]) else na
+          data.append(link)
+
+          pageName = prospectData["Facebook Page"]["page name"] if (prospectData["Facebook Page"]["page name"]) else na
+          data.append(pageName)
+
+          likes = prospectData["Facebook Page"]["likes"] if (prospectData["Facebook Page"]["likes"]) else na
+          data.append(likes)
+
+          followers = prospectData["Facebook Page"]["followers"] if (prospectData["Facebook Page"]["followers"]) else na
+          data.append(followers)
+        else:
+          for i in range(4):
+            data.append(na)
+
+        if (prospectData["Instagram Page"]["result"] == "success"):
+          link = prospectData["Instagram Page"]["link"] if (prospectData["Instagram Page"]["link"]) else na
+          data.append(link)
+
+          username = prospectData["Instagram Page"]["username"] if (prospectData["Instagram Page"]["username"]) else na
+          data.append(username)
+
+          followers = prospectData["Instagram Page"]["followers"] if (prospectData["Instagram Page"]["followers"]) else na
+          data.append(followers)
+
+          following = prospectData["Instagram Page"]["following"] if (prospectData["Instagram Page"]["following"]) else na
+          data.append(following)
+        else:
+          for i in range(4):
+            data.append(na)
+    else:
+      for i in range(12):
+        data.append(na)
+    while True:
+      try:
+        masterSheet.insert_row(data, availableRow)
+        break
+      except gspread.exceptions.APIError:
+        log.error("Quota exceeded, waiting 10 seconds")
+        time.sleep(10)
+    availableRow += 1
+
+  # for elem in filteredData:
+  #   prospect = list(elem.keys())[0]
+  #   log.debug("Next available row: " + str(availableRow))
+  #   log.debug(f"Saving: {prospect} to Google Sheets")
+  #   while True:
+  #     try:
+  #       masterSheet.add_rows(1)
+  #       break
+  #     except gspread.exceptions.APIError:
+  #       log.error("Quota exceeded, waiting 10 seconds")
+  #       time.sleep(10)
+  #   prospectData = elem[prospect]
+
+  #   update_cell(masterSheet, availableRow, 1, prospect)
+
+  #   if (prospectData["result"] == "success"):
+  #     for key in prospectData:    # Every loop = different column
+  #       if (key == "website"):
+  #         update_cell(masterSheet, availableRow, 2, prospectData[key])
+  #       elif (key == "Contact Info"):
+  #         if (prospectData[key]["result"] == "success"):
+  #           link = prospectData[key]["link"] if (prospectData[key]["link"]) else na
+  #           update_cell(masterSheet, availableRow, 3, link)
+
+  #           email = prospectData[key]["email"] if (prospectData[key]["email"]) else na
+  #           update_cell(masterSheet, availableRow, 4, email)
+
+  #           number = prospectData[key]["number"] if (prospectData[key]["number"]) else na
+  #           update_cell(masterSheet, availableRow, 5, number)
+  #         else:
+  #           for i in range(3):
+  #             counter = i + 2
+  #             masterSheet.update_cell(availableRow, counter, na)
+  #       elif (key == "Facebook Page"):
+  #         if (socialsFlag.lower() != "false"):
+  #           if (prospectData[key]["result"] == "success"):
+  #             link = prospectData[key]["link"] if (prospectData[key]["link"]) else na
+  #             update_cell(masterSheet, availableRow, 6, link)
+
+  #             pageName = prospectData[key]["page name"] if (prospectData[key]["page name"]) else na
+  #             update_cell(masterSheet, availableRow, 7, pageName)
+
+  #             likes = prospectData[key]["likes"] if (prospectData[key]["likes"]) else na
+  #             update_cell(masterSheet, availableRow, 8, likes)
+
+  #             followers = prospectData[key]["followers"] if (prospectData[key]["followers"]) else na
+  #             update_cell(masterSheet, availableRow, 9, followers)
+  #           else:
+  #             for i in range(4):
+  #               counter = i + 6
+  #               masterSheet.update_cell(availableRow, counter, na)
+  #       elif (key == "Instagram Page"):
+  #         if (socialsFlag.lower() != "false"):
+  #           if (prospectData[key]["result"] == "success"):
+
+  #             link = prospectData[key]["link"] if (prospectData[key]["link"]) else na
+  #             update_cell(masterSheet, availableRow, 10, link)
+
+  #             username = prospectData[key]["username"] if (prospectData[key]["username"]) else na
+  #             update_cell(masterSheet, availableRow, 11, username)
+
+  #             followers = prospectData[key]["followers"] if (prospectData[key]["followers"]) else na
+  #             update_cell(masterSheet, availableRow, 12, followers)
+
+  #             following = prospectData[key]["following"] if (prospectData[key]["following"]) else na
+  #             update_cell(masterSheet, availableRow, 13, following)
+  #           else:
+  #             for i in range(4):
+  #               counter = i + 10
+  #               masterSheet.update_cell(availableRow, counter, na)
+  #   else:
+  #     for i in range(12):
+  #       masterSheet.update_cell(availableRow, i + 2, na)
+  #   availableRow += 1
+
+def CustomSort(a, b):
+  order = [
+    "Prospect",
+    "Website",
+    "Contact Page",
+    "Contact Email",
+    "Contact Number",
+    "Facebook Page Link",
+    "Facebook Page Name",
+    "Facebook Likes",
+    "Facebook Followers",
+    "Instagram Page Link",
+    "Instagram Username",
+    "Instagram Followers",
+    "Instagram Following"
+  ]
+  if (order.index(a) > order.index(b)):
+    return 1
+  else:
+    return -1
 #------------------------------------------------------------------------------------#
 # Update a cell in google sheets
 #------------------------------------------------------------------------------------#
