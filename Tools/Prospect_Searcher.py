@@ -79,6 +79,7 @@ def Main():
 
   for thread in threadArray:    # Wait for all threads to complete
     thread.join()
+    log.debug("Thread joined. New number of active threads: " + str(threading.active_count()))
 
   log.debug("All threads complete")
   log.debug("New number of active threads: " + str(threading.active_count()))
@@ -200,7 +201,13 @@ def SaveToGoogle(data):
     for elem in filteredData:
       log.debug("Next available row: " + str(availableRow))
       log.debug(f"Saving: {list(elem.keys())[0]} to Google Sheets")
-      masterSheet.add_rows(1)
+      while True:
+        try:
+          masterSheet.add_rows(1)
+          break
+        except gspread.exceptions.APIError:
+          log.error("Quota exceeded, waiting 10 seconds")
+          time.sleep(10)
       prospect = list(elem.keys())[0]
       prospectData = elem[prospect]
 
@@ -262,7 +269,7 @@ def SaveToGoogle(data):
                   counter = i + 10
                   masterSheet.update_cell(availableRow, counter, na)
       else:
-        for i in range(13):
+        for i in range(12):
           masterSheet.update_cell(availableRow, i + 2, na)
       availableRow += 1
   except gspread.exceptions.APIError:
@@ -280,8 +287,8 @@ def update_cell(sheet, row, column, data):
       sheet.update_cell(row, column, data)
       break
     except gspread.exceptions.APIError:
-      log.error("Quota exceeded, waiting 100 seconds")
-      time.sleep(100)
+      log.error("Quota exceeded, waiting 10 seconds")
+      time.sleep(10)
 
 #------------------------------------------------------------------------------------#
 # Export information to xls file
