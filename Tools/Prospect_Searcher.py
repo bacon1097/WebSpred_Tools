@@ -2,9 +2,10 @@
 # Modules
 #------------------------------------------------------------------------------------#
 
-import requests, argparse, re, json, xlwt, os, threading, logging
+import requests, argparse, re, json, xlwt, os, threading, logging, gspread
 from bs4 import BeautifulSoup
 from queue import Queue
+from oauth2client.service_account import ServiceAccountCredentials
 
 #------------------------------------------------------------------------------------#
 # Variables & Config
@@ -29,6 +30,8 @@ parser.add_argument("--time", "-t", metavar="STRING", required=False, help="Retu
   "a certain perdiod. d = past day, w = past week, m = past month")
 parser.add_argument("--socials", "-o", metavar="BOOLEAN", required=False, help="Whether to return social " +\
   "information or not (True/False)", default="True")
+parser.add_argument("--save", "-d", metavar="INT", required=False, help="Fills out option list and saves " +\
+  "information to a destination. 1 = Excel sheet. 2 = Google sheet. 3 = Exit after gathering data")
 args = parser.parse_args()
 
 if (args.results is not None):
@@ -39,16 +42,24 @@ else:
   log.info("No number of results specified, will retrieve 10")
   args.results = 10
 
+if (args.save is not None):
+  if (int(args.save) <= 0 or int(args.save) >= 4):
+    log.error(f"Cannot use: {args.save} as a save option")
+    raise Exception
+
 searchString = args.searchTerm
 results = args.results
 time = args.time
 socialsFlag = args.socials
+followUpOption = int(args.save)
 
 #------------------------------------------------------------------------------------#
 # Process list for the script
 #------------------------------------------------------------------------------------#
 
 def Main():
+  """Execute Main() to run the program"""
+
   log.info(f"Getting google search results for {searchString}")
   links = GetGoogleResults(searchString, results, time)
   links = GetUnique(links)[:results]    # Only use the number of results requested
@@ -79,43 +90,187 @@ def Main():
 
   log.info(json.dumps(infoArray, indent=4))
 
-  while True:
-    response = 0
-    try:
-      response = int(input("What would you like to do with this information?\n" +
-        "1. Save to .xls file\n" +
-        "2. Save to .txt file\n" +
-        "3. Send emails\n" +
-        "4. Exit\n"))
-      log.debug("Got response: " + str(response))
-    except Exception:
-      log.debug("Invalid response entered: " + str(response))
-      continue
-
-    if (response == 1):
+  response = 0
+  if (not followUpOption):
+    while True:
+        try:
+          response = int(input("What would you like to do with this information?\n" +
+            "1. Save to .xls file\n" +
+            "2. Save to Google Drive sheets (Master Prospects)\n" +
+            "3. Exit\n"))
+          break
+        except Exception:
+          log.error("Invalid response entered: " + str(response))
+  else:
+    response = followUpOption
+  log.debug("Using response: " + str(response))
+  if (response == 1):
+    fileName = ""
+    if (not followUpOption):
       fileName = input("Enter name of file to be saved (Default = 'Prospects.xls')\n")
-      if (fileName):
-        fileName = re.sub(r"\.xls$", "", fileName.strip())
-        fileName += ".xls"
-      else:
-        fileName = "Prospects.xls"
-      ExportXls(infoArray, fileName)
-      log.info(f"{fileName} has been saved")
-      break
-    elif (response == 2):
-      break
-    elif (response == 3):
-      break
-    elif (response == 4):
-      break
-    else:   # If response is not a valid response
-      continue
+    if (fileName):
+      fileName = re.sub(r"\.xls$", "", fileName.strip())
+      fileName += ".xls"
+    else:
+      fileName = "Prospects.xls"
+    log.debug(f"Saving information to {fileName}")
+    ExportXls(infoArray, fileName)
+    log.info(f"{fileName} has been saved")
+  elif (response == 2):
+    log.debug("Saving information to Google")
+    SaveToGoogle(infoArray)
+    log.info("Saved info to Google Sheets")
+  elif (response == 3):
+    pass
+  else:   # If response is not a valid response
+    pass
+
+#------------------------------------------------------------------------------------#
+# Save to Google Sheets
+#------------------------------------------------------------------------------------#
+
+def SaveToGoogle(data):
+  """Saves data to Google Sheets"""
+
+  # Configure
+  scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+  creds = None
+
+  try:
+    creds = ServiceAccountCredentials.from_json_keyfile_name("creds.json", scope)   # Ensure that creds.json file exists
+  except FileNotFoundError:
+    log.critical("Could not find 'creds.json' file for connecting to Google")
+  except Exception:
+    log.critical("Could not authorize with 'creds.json' file")
+
+  client = gspread.authorize(creds)   # Authorize with credentials
+
+  masterSheet = client.open("Master Prospects").sheet1    # Get sheet to input values into
+  usedSheet = client.open("Master Sent Emails").sheet1 # Get sheet of email addresses that have been used
+
+  # Read all data
+  savedEmails = masterSheet.get_all_records()
+  usedEmails = usedSheet.get_all_records()
+
+  invalidEmails = []
+  invalidProspects = []
+  for row in savedEmails:
+    email = ""
+    prospect = ""
+    try:
+      email = row["Contact Email"]
+    except KeyError:
+      log.error("'Contact Email' does not exist in 'Master Prospects'")
+    try:
+      prospect = row["Prospect"]
+    except KeyError:
+      log.error("'Prospect' does not exist in 'Master Prospects'")
+    if (email and email != "N/A"):
+      invalidEmails.append(email)
+    if (prospect and prospect != "N/A"):
+      invalidProspects.append(prospect)
+
+  for row in usedEmails:
+    email = ""
+    prospect = ""
+    try:
+      email = row["Email"]
+    except KeyError:
+      log.error("'Email' does not exist in 'Master Sent Emails'")
+    try:
+      prospect = row["Prospect"]
+    except KeyError:
+      log.error("'Prospect' does not exist in 'Master Prospects'")
+    if (email and email != "N/A"):
+      invalidEmails.append(email)
+    if (prospect and prospect != "N/A"):
+      invalidProspects.append(prospect)
+
+  # Weed out duplicates by getting every element in data gathered and checking if the email is not in
+  # array of invalid emails
+  filteredData = [e for e in data if (e[list(e.keys())[0]]["Contact Info"]["email"] not in invalidEmails)]    # Filter out by email
+  filteredData = [e for e in data if (list(e.keys())[0] not in invalidProspects)]   # Filter out by prospect name
+
+  availableRow = len(list(filter(None, masterSheet.col_values(1)))) + 1   # Get first empty row in sheet
+
+  # Write data
+  na = "N/A"    # Identifier for empty data values
+  for elem in filteredData:
+    log.debug("Next available row: " + str(availableRow))
+    log.debug(f"Saving: {list(elem.keys())[0]} to Google Sheets")
+    masterSheet.add_rows(1)
+    prospect = list(elem.keys())[0]
+    prospectData = elem[prospect]
+
+    masterSheet.update_cell(availableRow, 1, prospect)
+
+    if (prospectData["result"] == "success"):
+      for key in prospectData:    # Every loop = different column
+        if (key == "website"):
+          masterSheet.update_cell(availableRow, 2, prospectData[key])
+        elif (key == "Contact Info"):
+          if (prospectData[key]["result"] == "success"):
+            link = prospectData[key]["link"] if (prospectData[key]["link"]) else na
+            masterSheet.update_cell(availableRow, 3, link)
+
+            email = prospectData[key]["email"] if (prospectData[key]["email"]) else na
+            masterSheet.update_cell(availableRow, 4, email)
+
+            number = prospectData[key]["number"] if (prospectData[key]["number"]) else na
+            masterSheet.update_cell(availableRow, 5, number)
+          else:
+            for i in range(3):
+              counter = i + 2
+              masterSheet.update_cell(availableRow, counter, na)
+        elif (key == "Facebook Page"):
+          if (socialsFlag.lower() != "false"):
+            if (prospectData[key]["result"] == "success"):
+              link = prospectData[key]["link"] if (prospectData[key]["link"]) else na
+              masterSheet.update_cell(availableRow, 6, link)
+
+              pageName = prospectData[key]["page name"] if (prospectData[key]["page name"]) else na
+              masterSheet.update_cell(availableRow, 7, pageName)
+
+              likes = prospectData[key]["likes"] if (prospectData[key]["likes"]) else na
+              masterSheet.update_cell(availableRow, 8, likes)
+
+              followers = prospectData[key]["followers"] if (prospectData[key]["followers"]) else na
+              masterSheet.update_cell(availableRow, 9, followers)
+            else:
+              for i in range(4):
+                counter = i + 6
+                masterSheet.update_cell(availableRow, counter, na)
+        elif (key == "Instagram Page"):
+          if (socialsFlag.lower() != "false"):
+            if (prospectData[key]["result"] == "success"):
+
+              link = prospectData[key]["link"] if (prospectData[key]["link"]) else na
+              masterSheet.update_cell(availableRow, 10, link)
+
+              username = prospectData[key]["username"] if (prospectData[key]["username"]) else na
+              masterSheet.update_cell(availableRow, 11, username)
+
+              followers = prospectData[key]["followers"] if (prospectData[key]["followers"]) else na
+              masterSheet.update_cell(availableRow, 12, followers)
+
+              following = prospectData[key]["following"] if (prospectData[key]["following"]) else na
+              masterSheet.update_cell(availableRow, 13, following)
+            else:
+              for i in range(4):
+                counter = i + 10
+                masterSheet.update_cell(availableRow, counter, na)
+    else:
+      for i in range(13):
+        masterSheet.update_cell(availableRow, i + 2, na)
+    availableRow += 1
 
 #------------------------------------------------------------------------------------#
 # Export information to xls file
 #------------------------------------------------------------------------------------#
 
 def ExportXls(data, fileName="Prospects.xls"):
+  """Saves data to an Excel sheet"""
+
   bold = xlwt.easyxf("font: bold on")
 
   book = xlwt.Workbook()
@@ -247,6 +402,8 @@ def ExportXls(data, fileName="Prospects.xls"):
 #------------------------------------------------------------------------------------#
 
 def GetGoogleResults(searchString, results=10, time=""):
+  """Gets links from Google"""
+
   googleUrl = f"https://www.google.com/search?q={searchString}&num=100"
   if (time == "d" or time == "w" or time == "m"):
     googleUrl += f"&as_qdr={time}"
@@ -269,6 +426,7 @@ def GetGoogleResults(searchString, results=10, time=""):
 #------------------------------------------------------------------------------------#
 
 def GetUnique(links):
+  """Weeds out duplicate links"""
   correctedArray = []
   for link in links:
     link = re.sub(r"((\.com)|(\.co\.uk)|(\.org(\.uk)?)|(\.uk)|(\.co)).*", r"\1", link)
@@ -281,6 +439,7 @@ def GetUnique(links):
 #------------------------------------------------------------------------------------#
 
 def GetInfo(link):
+  """Gets information on a link"""
 
   # Get company name from link
   companyName = re.sub(r"^.*?//", "", link)
@@ -353,6 +512,8 @@ def GetInfo(link):
 #------------------------------------------------------------------------------------#
 
 def CheckFacebook(link):
+  """Gathers Facebook information on a facebook link"""
+
   info = {
     "result": "failed",
     "link": "",
@@ -396,6 +557,8 @@ def CheckFacebook(link):
 #------------------------------------------------------------------------------------#
 
 def CheckTwitter(link):
+  """Gathers Twitter information on a Twitter link"""
+
   info = {
     "result": "failed",
     "followers": 0,
@@ -440,6 +603,8 @@ def CheckTwitter(link):
 #------------------------------------------------------------------------------------#
 
 def CheckInsta(link):
+  """Gets Instagram information from an Instagram link"""
+
   info = {
     "result": "failed",
     "followers": 0,
@@ -496,6 +661,8 @@ def CheckInsta(link):
 #------------------------------------------------------------------------------------#
 
 def GetContactInfo(contactLink):
+  """Gets contact information from a website"""
+
   info = {
     "number": 0,
     "email": "",
