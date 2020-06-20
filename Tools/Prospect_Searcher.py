@@ -2,7 +2,7 @@
 # Modules
 #------------------------------------------------------------------------------------#
 
-import requests, argparse, re, json, xlwt, os, threading, logging, gspread
+import requests, argparse, re, json, xlwt, os, threading, logging, gspread, time
 from bs4 import BeautifulSoup
 from queue import Queue
 from oauth2client.service_account import ServiceAccountCredentials
@@ -49,7 +49,7 @@ if (args.save is not None):
 
 searchString = args.searchTerm
 results = args.results
-time = args.time
+timeframe = args.time
 socialsFlag = args.socials
 followUpOption = int(args.save)
 
@@ -61,7 +61,7 @@ def Main():
   """Execute Main() to run the program"""
 
   log.info(f"Getting google search results for {searchString}")
-  links = GetGoogleResults(searchString, results, time)
+  links = GetGoogleResults(searchString, results, timeframe)
   links = GetUnique(links)[:results]    # Only use the number of results requested
   infoArray = []
   threadArray = []
@@ -196,74 +196,92 @@ def SaveToGoogle(data):
 
   # Write data
   na = "N/A"    # Identifier for empty data values
-  for elem in filteredData:
-    log.debug("Next available row: " + str(availableRow))
-    log.debug(f"Saving: {list(elem.keys())[0]} to Google Sheets")
-    masterSheet.add_rows(1)
-    prospect = list(elem.keys())[0]
-    prospectData = elem[prospect]
+  try:
+    for elem in filteredData:
+      log.debug("Next available row: " + str(availableRow))
+      log.debug(f"Saving: {list(elem.keys())[0]} to Google Sheets")
+      masterSheet.add_rows(1)
+      prospect = list(elem.keys())[0]
+      prospectData = elem[prospect]
 
-    masterSheet.update_cell(availableRow, 1, prospect)
+      update_cell(masterSheet, availableRow, 1, prospect)
 
-    if (prospectData["result"] == "success"):
-      for key in prospectData:    # Every loop = different column
-        if (key == "website"):
-          masterSheet.update_cell(availableRow, 2, prospectData[key])
-        elif (key == "Contact Info"):
-          if (prospectData[key]["result"] == "success"):
-            link = prospectData[key]["link"] if (prospectData[key]["link"]) else na
-            masterSheet.update_cell(availableRow, 3, link)
-
-            email = prospectData[key]["email"] if (prospectData[key]["email"]) else na
-            masterSheet.update_cell(availableRow, 4, email)
-
-            number = prospectData[key]["number"] if (prospectData[key]["number"]) else na
-            masterSheet.update_cell(availableRow, 5, number)
-          else:
-            for i in range(3):
-              counter = i + 2
-              masterSheet.update_cell(availableRow, counter, na)
-        elif (key == "Facebook Page"):
-          if (socialsFlag.lower() != "false"):
+      if (prospectData["result"] == "success"):
+        for key in prospectData:    # Every loop = different column
+          if (key == "website"):
+            masterSheet.update_cell(availableRow, 2, prospectData[key])
+          elif (key == "Contact Info"):
             if (prospectData[key]["result"] == "success"):
               link = prospectData[key]["link"] if (prospectData[key]["link"]) else na
-              masterSheet.update_cell(availableRow, 6, link)
+              update_cell(masterSheet, availableRow, 3, link)
 
-              pageName = prospectData[key]["page name"] if (prospectData[key]["page name"]) else na
-              masterSheet.update_cell(availableRow, 7, pageName)
+              email = prospectData[key]["email"] if (prospectData[key]["email"]) else na
+              update_cell(masterSheet, availableRow, 4, email)
 
-              likes = prospectData[key]["likes"] if (prospectData[key]["likes"]) else na
-              masterSheet.update_cell(availableRow, 8, likes)
-
-              followers = prospectData[key]["followers"] if (prospectData[key]["followers"]) else na
-              masterSheet.update_cell(availableRow, 9, followers)
+              number = prospectData[key]["number"] if (prospectData[key]["number"]) else na
+              update_cell(masterSheet, availableRow, 5, number)
             else:
-              for i in range(4):
-                counter = i + 6
+              for i in range(3):
+                counter = i + 2
                 masterSheet.update_cell(availableRow, counter, na)
-        elif (key == "Instagram Page"):
-          if (socialsFlag.lower() != "false"):
-            if (prospectData[key]["result"] == "success"):
+          elif (key == "Facebook Page"):
+            if (socialsFlag.lower() != "false"):
+              if (prospectData[key]["result"] == "success"):
+                link = prospectData[key]["link"] if (prospectData[key]["link"]) else na
+                update_cell(masterSheet, availableRow, 6, link)
 
-              link = prospectData[key]["link"] if (prospectData[key]["link"]) else na
-              masterSheet.update_cell(availableRow, 10, link)
+                pageName = prospectData[key]["page name"] if (prospectData[key]["page name"]) else na
+                update_cell(masterSheet, availableRow, 7, pageName)
 
-              username = prospectData[key]["username"] if (prospectData[key]["username"]) else na
-              masterSheet.update_cell(availableRow, 11, username)
+                likes = prospectData[key]["likes"] if (prospectData[key]["likes"]) else na
+                update_cell(masterSheet, availableRow, 8, likes)
 
-              followers = prospectData[key]["followers"] if (prospectData[key]["followers"]) else na
-              masterSheet.update_cell(availableRow, 12, followers)
+                followers = prospectData[key]["followers"] if (prospectData[key]["followers"]) else na
+                update_cell(masterSheet, availableRow, 9, followers)
+              else:
+                for i in range(4):
+                  counter = i + 6
+                  masterSheet.update_cell(availableRow, counter, na)
+          elif (key == "Instagram Page"):
+            if (socialsFlag.lower() != "false"):
+              if (prospectData[key]["result"] == "success"):
 
-              following = prospectData[key]["following"] if (prospectData[key]["following"]) else na
-              masterSheet.update_cell(availableRow, 13, following)
-            else:
-              for i in range(4):
-                counter = i + 10
-                masterSheet.update_cell(availableRow, counter, na)
-    else:
-      for i in range(13):
-        masterSheet.update_cell(availableRow, i + 2, na)
-    availableRow += 1
+                link = prospectData[key]["link"] if (prospectData[key]["link"]) else na
+                update_cell(masterSheet, availableRow, 10, link)
+
+                username = prospectData[key]["username"] if (prospectData[key]["username"]) else na
+                update_cell(masterSheet, availableRow, 11, username)
+
+                followers = prospectData[key]["followers"] if (prospectData[key]["followers"]) else na
+                update_cell(masterSheet, availableRow, 12, followers)
+
+                following = prospectData[key]["following"] if (prospectData[key]["following"]) else na
+                update_cell(masterSheet, availableRow, 13, following)
+              else:
+                for i in range(4):
+                  counter = i + 10
+                  masterSheet.update_cell(availableRow, counter, na)
+      else:
+        for i in range(13):
+          masterSheet.update_cell(availableRow, i + 2, na)
+      availableRow += 1
+  except gspread.exceptions.APIError:
+    log.error("Quota exceeded, waiting")
+
+#------------------------------------------------------------------------------------#
+# Update a cell in google sheets
+#------------------------------------------------------------------------------------#
+
+def update_cell(sheet, row, column, data):
+  """Will update a cell in a Google Sheets document"""
+
+  while True:
+    try:
+      sheet.update_cell(row, column, data)
+      break
+    except gspread.exceptions.APIError:
+      log.error("Quota exceeded, waiting 100 seconds")
+      time.sleep(100)
 
 #------------------------------------------------------------------------------------#
 # Export information to xls file
@@ -402,12 +420,12 @@ def ExportXls(data, fileName="Prospects.xls"):
 # Get websites from google
 #------------------------------------------------------------------------------------#
 
-def GetGoogleResults(searchString, results=10, time=""):
+def GetGoogleResults(searchString, results=10, timeframe=""):
   """Gets links from Google"""
 
   googleUrl = f"https://www.google.com/search?q={searchString}&num=100"
-  if (time == "d" or time == "w" or time == "m"):
-    googleUrl += f"&as_qdr={time}"
+  if (timeframe == "d" or timeframe == "w" or timeframe == "m"):
+    googleUrl += f"&as_qdr={timeframe}"
   r = requests.get(googleUrl)
   soup = BeautifulSoup(r.text, "html.parser")
 
