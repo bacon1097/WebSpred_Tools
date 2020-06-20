@@ -188,7 +188,8 @@ def SaveToGoogle(data):
 
   # Weed out duplicates by getting every element in data gathered and checking if the email is not in
   # array of invalid emails
-  filteredData = [e for e in data if (e[list(e.keys())[0]]["Contact Info"]["email"] not in invalidEmails)]    # Filter out by email
+  filteredData = [e for e in data if ("email" in e[list(e.keys())[0]]["Contact Info"] and \
+    e[list(e.keys())[0]]["Contact Info"]["email"] not in invalidEmails)]    # Filter out by email
   filteredData = [e for e in data if (list(e.keys())[0] not in invalidProspects)]   # Filter out by prospect name
 
   availableRow = len(list(filter(None, masterSheet.col_values(1)))) + 1   # Get first empty row in sheet
