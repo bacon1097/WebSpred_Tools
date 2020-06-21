@@ -255,6 +255,9 @@ def SaveToGoogle(data):
         else:
           for i in range(4):
             cells.append(Cell(availableRow, i + 10, na))
+      else:
+        for i in range(8):
+          cells.append(Cell(availableRow, i + 6, na))
     else:
       for i in range(12):
         cells.append(Cell(availableRow, i + 2, na))
@@ -656,6 +659,10 @@ def CheckInsta(link):
   # Get username of account
   username = soup.find("title")
   if (username):
+    if (re.search(r"", username.text.strip())):
+      info["result"] = "failed"
+      log.error("Bot Detection for Instagram")
+      return info
     username = re.sub(r"^.*@", "", username.text.strip())        # Regex out everything except identifier
     username = re.sub(r"\).*$", "", username)
     info["username"] = username
