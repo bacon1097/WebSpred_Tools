@@ -195,9 +195,8 @@ def SaveToGoogle(data):
     e[list(e.keys())[0]]["Contact Info"]["email"] not in invalidEmails)]    # Filter out by email
   filteredData = [e for e in data if (list(e.keys())[0] not in invalidProspects)]   # Filter out by prospect name
 
-  columnCount = filter(None, masterSheet.col_values(1))
-  availableRow = len(list(columnCount)) + 1   # Get first empty row in sheet
-  masterSheet.resize(len(list(columnCount)) + 100)   # Add 100 rows on every script run
+  availableRow = len(list(filter(None, masterSheet.col_values(1)))) + 1   # Get first empty row in sheet
+  masterSheet.resize(rows=masterSheet.row_count + 100)   # Add 100 rows on every script run
 
   # Write data
   na = "N/A"    # Identifier for empty data values
@@ -265,8 +264,9 @@ def SaveToGoogle(data):
       try:
         masterSheet.update_cells(cells)    # Write the data to the next available row
         break
-      except gspread.exceptions.APIError:   # Error when API quota max has been reached
-        log.error("Quota exceeded, waiting 10 seconds")
+      except gspread.exceptions.APIError as err:   # Error when API quota max has been reached
+        log.error(err.msg)
+        log.error("Error occurred, waiting 10 seconds")
         time.sleep(10)
 
 #------------------------------------------------------------------------------------#
@@ -280,8 +280,9 @@ def update_cell(sheet, row, column, data):
     try:
       sheet.update_cell(row, column, data)
       break
-    except gspread.exceptions.APIError:
-      log.error("Quota exceeded, waiting 10 seconds")
+    except gspread.exceptions.APIError as err:
+      log.error(err.msg)
+      log.error("Error occurred, waiting 10 seconds")
       time.sleep(10)
 
 #------------------------------------------------------------------------------------#
