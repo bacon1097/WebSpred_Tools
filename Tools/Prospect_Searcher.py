@@ -6,6 +6,7 @@ import requests, argparse, re, json, xlwt, os, threading, logging, gspread, time
 from bs4 import BeautifulSoup
 from queue import Queue
 from oauth2client.service_account import ServiceAccountCredentials
+from gspread.models import Cell
 
 #------------------------------------------------------------------------------------#
 # Variables & Config
@@ -171,6 +172,7 @@ def SaveToGoogle(data):
     if (prospect and prospect != "N/A"):
       invalidProspects.append(prospect)
 
+  # Format and write data to Google Sheets
   for row in usedEmails:
     email = ""
     prospect = ""
@@ -194,75 +196,77 @@ def SaveToGoogle(data):
   filteredData = [e for e in data if (list(e.keys())[0] not in invalidProspects)]   # Filter out by prospect name
 
   availableRow = len(list(filter(None, masterSheet.col_values(1)))) + 1   # Get first empty row in sheet
+  masterSheet.insert_row(100, availableRow)   # Add 100 rows on every script run
 
   # Write data
   na = "N/A"    # Identifier for empty data values
-
+  cells = []    # Put all data in an array to make 1 write call
   for elem in filteredData:
     prospect = list(elem.keys())[0]
     log.debug("Next available row: " + str(availableRow))
     log.debug(f"Saving: {prospect} to Google Sheets")
 
-    data = [prospect]   # Put data in an array to make 1 write call
+    cells.append(Cell(availableRow, 1, prospect))
     prospectData = elem[prospect]
     if (prospectData["result"] == "success"):
-      data.append(prospectData["website"])
+      cells.append(Cell(availableRow, 2, prospectData["website"]))
       if (prospectData["Contact Info"]["result"] == "success"):
         link = prospectData["Contact Info"]["link"] if (prospectData["Contact Info"]["link"]) else na
-        data.append(link)
+        cells.append(Cell(availableRow, 3, link))
 
         email = prospectData["Contact Info"]["email"] if (prospectData["Contact Info"]["email"]) else na
-        data.append(email)
+        cells.append(Cell(availableRow, 4, email))
 
         number = prospectData["Contact Info"]["number"] if (prospectData["Contact Info"]["number"]) else na
-        data.append(number)
+        cells.append(Cell(availableRow, 5, number))
       else:
         for i in range(3):
-          data.append(na)
+          cells.append(Cell(availableRow, i + 3, na))
 
       if (socialsFlag.lower() != "false"):
         if (prospectData["Facebook Page"]["result"] == "success"):
           link = prospectData["Facebook Page"]["link"] if (prospectData["Facebook Page"]["link"]) else na
-          data.append(link)
+          cells.append(Cell(availableRow, 6, link))
 
           pageName = prospectData["Facebook Page"]["page name"] if (prospectData["Facebook Page"]["page name"]) else na
-          data.append(pageName)
+          cells.append(Cell(availableRow, 7, pageName))
 
           likes = prospectData["Facebook Page"]["likes"] if (prospectData["Facebook Page"]["likes"]) else na
-          data.append(likes)
+          cells.append(Cell(availableRow, 8, likes))
 
           followers = prospectData["Facebook Page"]["followers"] if (prospectData["Facebook Page"]["followers"]) else na
-          data.append(followers)
+          cells.append(Cell(availableRow, 9, followers))
         else:
           for i in range(4):
-            data.append(na)
+            cells.append(Cell(availableRow, i + 6, na))
 
         if (prospectData["Instagram Page"]["result"] == "success"):
           link = prospectData["Instagram Page"]["link"] if (prospectData["Instagram Page"]["link"]) else na
-          data.append(link)
+          cells.append(Cell(availableRow, 10, link))
 
           username = prospectData["Instagram Page"]["username"] if (prospectData["Instagram Page"]["username"]) else na
-          data.append(username)
+          cells.append(Cell(availableRow, 11, username))
 
           followers = prospectData["Instagram Page"]["followers"] if (prospectData["Instagram Page"]["followers"]) else na
-          data.append(followers)
+          cells.append(Cell(availableRow, 12, followers))
 
           following = prospectData["Instagram Page"]["following"] if (prospectData["Instagram Page"]["following"]) else na
-          data.append(following)
+          cells.append(Cell(availableRow, 13, following))
         else:
           for i in range(4):
-            data.append(na)
+            cells.append(Cell(availableRow, i + 10, na))
     else:
       for i in range(12):
-        data.append(na)
-    while True:
+        cells.append(Cell(availableRow, i + 2, na))
+    availableRow += 1
+
+  while True:
       try:
-        masterSheet.insert_row(data, availableRow)    # Write the data to the next available row
+        masterSheet.update_cells(cells)    # Write the data to the next available row
         break
       except gspread.exceptions.APIError:   # Error when API quota max has been reached
         log.error("Quota exceeded, waiting 10 seconds")
         time.sleep(10)
-    availableRow += 1
 
 #------------------------------------------------------------------------------------#
 # Update a cell in google sheets
@@ -539,6 +543,7 @@ def CheckFacebook(link):
   soup = ""
 
   try:
+    link = re.sub(r"^\/\/", "", link)   # Sometimes the link may have a "//" at the beginning
     soup = BeautifulSoup(requests.get(link, timeout=5).text, "html.parser")
     info["link"] = link
     info["result"] = "success"
@@ -584,6 +589,7 @@ def CheckTwitter(link):
   soup = ""
 
   try:
+    link = re.sub(r"^\/\/", "", link)   # Sometimes the link may have a "//" at the beginning
     soup = BeautifulSoup(requests.get(link, timeout=5).text, "html.parser")
     info["result"] = "success"
   except Exception as e:
