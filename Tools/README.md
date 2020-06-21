@@ -14,7 +14,7 @@ Instructions on how to setup and use this tool.
 1. ```cd``` into the directory of your downloaded version of this project.
     * Mac & Windows ```cd Downloads/WebSpred_Tools/Tools``` (default directory)
 1. Install all python dependencies
-    * Mac & Windows ```pip3 install xlwt beautifulsoup4 requests```
+    * Mac & Windows ```pip3 install xlwt beautifulsoup4 gspread oauth2client requests```
 1. Run your application with appropriate options
     * Mac & Windows ```python3 Prospect_Searcher.py --searchTerm news --results 10 --socials True --time m```
 
@@ -23,7 +23,8 @@ Instructions on how to setup and use this tool.
 * ```--results | -r``` = The number of results you want to return. The higher the number, the longer it will take. (Optional. Default = 10)
 * ```--time | -t``` = Valid options are:"d", "w", "m" for day, week, month. This will only get results of websites
 that have been uploaded to google in the recent time-frame. This is good for finding new businesses. (Optional)
-* ``` --socials | -o``` = Whether to get social information such as Facebook & Instagram. (Optional. Default = True)
+* ```--socials | -o``` = Whether to get social information such as Facebook & Instagram. (Optional. Default = True)
+* ```--save | - d``` = 1 = Saves to excel sheet. 2 = Saves to Google sheet. 3 = Exit after gathering data. (Optional)
 
 ## Additional Information
 Logs are saved in a file called ```Prospect_Searcher.log```. If the script fails. Do not delete this log as it will
