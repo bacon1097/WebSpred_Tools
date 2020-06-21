@@ -195,8 +195,9 @@ def SaveToGoogle(data):
     e[list(e.keys())[0]]["Contact Info"]["email"] not in invalidEmails)]    # Filter out by email
   filteredData = [e for e in data if (list(e.keys())[0] not in invalidProspects)]   # Filter out by prospect name
 
-  availableRow = len(list(filter(None, masterSheet.col_values(1)))) + 1   # Get first empty row in sheet
-  masterSheet.insert_row(100, availableRow)   # Add 100 rows on every script run
+  columnCount = filter(None, masterSheet.col_values(1))
+  availableRow = len(list(columnCount)) + 1   # Get first empty row in sheet
+  masterSheet.resize(len(list(columnCount)) + 100)   # Add 100 rows on every script run
 
   # Write data
   na = "N/A"    # Identifier for empty data values
