@@ -14,52 +14,26 @@ from Application import Application
 # Variables & Config
 #------------------------------------------------------------------------------------#
 
-fh = logging.FileHandler("Prospect_Searcher.log", "w")
 sh = logging.StreamHandler()
 formatter = logging.Formatter("%(levelname)s : %(asctime)s : %(message)s", datefmt="%I:%M:%S %p")
 sh.setFormatter(formatter)
-fh.setFormatter(formatter)
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 log.addHandler(sh)
+
+try:
+  os.mkdir("./log")
+  log.info("Created directory")
+except FileExistsError:
+  log.error("Directory already exists")
+  pass
+except Exception as err:
+  log.critical("Could not create log directory")
+  raise err
+
+fh = logging.FileHandler("./log/Prospect_Searcher.log", "w")
+fh.setFormatter(formatter)
 log.addHandler(fh)
-
-# parser = argparse.ArgumentParser()
-# parser.add_argument("--searchTerm", "-s", metavar="STRING", required=True, help="Enter a search term")
-# parser.add_argument("--results", "-r", metavar="INT", required=False, type=int, default=4, help="How " +\
-#   "many results do you want. Up to 100. Results may not be exactly as specified due to duplicate links " +\
-#   "provided by Google.")
-# parser.add_argument("--time", "-t", metavar="STRING", required=False, help="Returns google indexes " +\
-#   "a certain perdiod. d = past day, w = past week, m = past month")
-# parser.add_argument("--socials", "-o", metavar="BOOLEAN", required=False, help="Whether to return social " +\
-#   "information or not (True/False)", default="True")
-# parser.add_argument("--save", "-d", metavar="INT", required=False, help="Fills out option list and saves " +\
-#   "information to a destination. 1 = Excel sheet. 2 = Google sheet. 3 = Exit after gathering data")
-# args = parser.parse_args()
-
-# if (args.results is not None):
-#   if (int(args.results) > 100):
-#     log.error("Cannot get more than 100 results, will return the max")
-#     args.results = 100
-#   if (int(args.results) < 1):
-#     log.critical("Cannot get a negative or 0 number of results")
-#     raise Exception
-# else:
-#   log.info("No number of results specified, will retrieve 10")
-#   args.results = 10
-
-# if (args.save is not None):
-#   if (int(args.save) <= 0 or int(args.save) >= 4):
-#     log.error(f"Cannot use: {args.save} as a save option")
-#     raise Exception
-#   else:
-#     args.save = int(args.save)
-
-# searchString = args.searchTerm
-# results = args.results
-# timeframe = args.time
-# socialsFlag = args.socials
-# followUpOption = args.save
 
 searchString = results = timeframe = socialsFlag = followUpOption = None
 
@@ -812,6 +786,8 @@ def GetContactInfo(contactLink):
       if (match):
         info["email"] = match.group(1)
   return info
+
+# Create the application GUI
 
 app = Application(callback=Init)
 app.mainloop()

@@ -3,6 +3,7 @@ from tkinter import *
 class Application(Frame):
     def __init__(self, master=Tk(), callback=None):
         master.title("Prospect Searcher")
+        master.iconbitmap("./media/Prospect Searcher.ico")
         Frame.__init__(self, master)
         self.pack()
         self.createWidgets(callback=callback)
@@ -47,8 +48,8 @@ class Application(Frame):
 
         Label(self, text="Where to save?").grid(row=4, sticky=E)
 
-        googleRadio = Radiobutton(self, text="Google Sheets", variable=reqSave, value=2)
-        excelRadio = Radiobutton(self, text="Excel Sheets", variable=reqSave, value=1)
+        googleRadio = Radiobutton(self, text="Google Sheet", variable=reqSave, value=2)
+        excelRadio = Radiobutton(self, text="Excel Sheet", variable=reqSave, value=1)
         googleRadio.grid(row=4, column=1, columnspan=2)
         excelRadio.grid(row=4, column=3, columnspan=2)
 
