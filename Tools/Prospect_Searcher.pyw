@@ -3,56 +3,92 @@
 #------------------------------------------------------------------------------------#
 
 import requests, argparse, re, json, xlwt, os, threading, logging, gspread, time
+import tkinter as tk
 from bs4 import BeautifulSoup
 from queue import Queue
 from oauth2client.service_account import ServiceAccountCredentials
 from gspread.models import Cell
+from Application import Application
 
 #------------------------------------------------------------------------------------#
 # Variables & Config
 #------------------------------------------------------------------------------------#
 
-fh = logging.FileHandler("Prospect_Searcher.log", "w")
 sh = logging.StreamHandler()
 formatter = logging.Formatter("%(levelname)s : %(asctime)s : %(message)s", datefmt="%I:%M:%S %p")
 sh.setFormatter(formatter)
-fh.setFormatter(formatter)
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 log.addHandler(sh)
+
+try:
+  os.mkdir("./log")
+  log.info("Created directory")
+except FileExistsError:
+  log.error("Directory already exists")
+  pass
+except Exception as err:
+  log.critical("Could not create log directory")
+  raise err
+
+fh = logging.FileHandler("./log/Prospect_Searcher.log", "w")
+fh.setFormatter(formatter)
 log.addHandler(fh)
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--searchTerm", "-s", metavar="STRING", required=True, help="Enter a search term")
-parser.add_argument("--results", "-r", metavar="INT", required=False, type=int, default=4, help="How " +\
-  "many results do you want. Up to 100. Results may not be exactly as specified due to duplicate links " +\
-  "provided by Google.")
-parser.add_argument("--time", "-t", metavar="STRING", required=False, help="Returns google indexes " +\
-  "a certain perdiod. d = past day, w = past week, m = past month")
-parser.add_argument("--socials", "-o", metavar="BOOLEAN", required=False, help="Whether to return social " +\
-  "information or not (True/False)", default="True")
-parser.add_argument("--save", "-d", metavar="INT", required=False, help="Fills out option list and saves " +\
-  "information to a destination. 1 = Excel sheet. 2 = Google sheet. 3 = Exit after gathering data")
-args = parser.parse_args()
+searchString = results = timeframe = socialsFlag = followUpOption = None
 
-if (args.results is not None):
-  if (int(args.results) > 100):
-    log.info("Cannot get more than 100 results, will return the max")
-    args.results = 100
-else:
-  log.info("No number of results specified, will retrieve 10")
-  args.results = 10
+#------------------------------------------------------------------------------------#
+# Get values from GUI
+#------------------------------------------------------------------------------------#
 
-if (args.save is not None):
-  if (int(args.save) <= 0 or int(args.save) >= 4):
-    log.error(f"Cannot use: {args.save} as a save option")
+def Init(reqSearchString=None, reqSocials=None, reqResults=None, reqTimeframe=None, reqSave=None):
+  """Gets values from GUI and validates them and then runs program"""
+
+  global results, searchString, timeframe, socialsFlag, followUpOption
+
+  try:
+    int(reqResults)
+    reqResults = int(reqResults)
+  except Exception:
+    log.critical("Could not parse results to get as an integer")
     raise Exception
 
-searchString = args.searchTerm
-results = args.results
-timeframe = args.time
-socialsFlag = args.socials
-followUpOption = int(args.save)
+  try:
+    int(reqSave)
+    reqSave = int(reqSave)
+  except Exception:
+    log.critical("Could not parse save input as an integer")
+    raise Exception
+
+  try:
+    ConvertToBool(reqSocials)
+    socialsFlag = ConvertToBool(reqSocials)
+  except Exception:
+    log.critical("Save to socials option is not a boolean")
+    raise Exception
+
+  if (reqResults > 100):
+    reqResults = 100
+  elif (reqResults < 1):
+    log.critical("Results requested is less that 1")
+    raise Exception
+  results = reqResults
+
+  if (not (reqTimeframe == "d" or reqTimeframe == "w" or reqTimeframe == "m" or reqTimeframe == "anytime")):
+    log.critical("Invalid timeframe option")
+    raise Exception
+  else:
+    timeframe = reqTimeframe
+
+  if (not (reqSave >= 1 and reqSave <= 3)):
+    log.critical("Invalid save option")
+    raise Exception
+  else:
+    followUpOption = reqSave
+
+  searchString = reqSearchString
+
+  Main()
 
 #------------------------------------------------------------------------------------#
 # Process list for the script
@@ -128,6 +164,20 @@ def Main():
     pass
 
 #------------------------------------------------------------------------------------#
+# Converts a string to bool
+#------------------------------------------------------------------------------------#
+
+def ConvertToBool(val):
+  if (val.lower() == "true"):
+    val = 1
+  elif (val.lower() == "false"):
+    val = 0
+  else:
+    log.critical("Could not convert string to bool: " + str(val))
+    raise Exception
+  return bool(val)
+
+#------------------------------------------------------------------------------------#
 # Save to Google Sheets
 #------------------------------------------------------------------------------------#
 
@@ -140,10 +190,12 @@ def SaveToGoogle(data):
 
   try:
     creds = ServiceAccountCredentials.from_json_keyfile_name("creds.json", scope)   # Ensure that creds.json file exists
-  except FileNotFoundError:
+  except FileNotFoundError as err:
     log.critical("Could not find 'creds.json' file for connecting to Google")
-  except Exception:
+    raise err
+  except Exception as err:
     log.critical("Could not authorize with 'creds.json' file")
+    raise err
 
   client = gspread.authorize(creds)   # Authorize with credentials
 
@@ -223,7 +275,7 @@ def SaveToGoogle(data):
         for i in range(3):
           cells.append(Cell(availableRow, i + 3, na))
 
-      if (socialsFlag.lower() != "false"):
+      if (socialsFlag):
         if (prospectData["Facebook Page"]["result"] == "success"):
           link = prospectData["Facebook Page"]["link"] if (prospectData["Facebook Page"]["link"]) else na
           cells.append(Cell(availableRow, 6, link))
@@ -263,14 +315,21 @@ def SaveToGoogle(data):
         cells.append(Cell(availableRow, i + 2, na))
     availableRow += 1
 
-  while True:
-      try:
-        masterSheet.update_cells(cells)    # Write the data to the next available row
-        break
-      except gspread.exceptions.APIError as err:   # Error when API quota max has been reached
-        log.error(err.msg)
-        log.error("Error occurred, waiting 10 seconds")
-        time.sleep(10)
+  if (len(cells) != 0):
+    while True:
+        try:
+          masterSheet.update_cells(cells)    # Write the data to the next available row
+          break
+        except gspread.exceptions.APIError as err:   # Error when API quota max has been reached
+          log.error(err)
+          log.error("Error occurred, waiting 10 seconds")
+          time.sleep(10)
+        except Exception as err:
+          log.critical(err)
+          log.critical("Undefined error, speak to Ben Brunyee")
+          raise err
+  else:
+    log.info("Cells are empty: " + str(cells))
 
 #------------------------------------------------------------------------------------#
 # Update a cell in google sheets
@@ -284,7 +343,7 @@ def update_cell(sheet, row, column, data):
       sheet.update_cell(row, column, data)
       break
     except gspread.exceptions.APIError as err:
-      log.error(err.msg)
+      log.error(err)
       log.error("Error occurred, waiting 10 seconds")
       time.sleep(10)
 
@@ -356,7 +415,7 @@ def ExportXls(data, fileName="Prospects.xls"):
               counter = i + 2
               sheet.write(rowCounter, counter, na)
         elif (key == "Facebook Page"):
-          if (socialsFlag.lower() != "false"):
+          if (socialsFlag):
             if (prospectData[key]["result"] == "success"):
               if (prospectData[key]["link"]):
                 sheet.write(rowCounter, 5, prospectData[key]["link"])
@@ -382,7 +441,7 @@ def ExportXls(data, fileName="Prospects.xls"):
                 counter = i + 5
                 sheet.write(rowCounter, counter, na)
         elif (key == "Instagram Page"):
-          if (socialsFlag.lower() != "false"):
+          if (socialsFlag):
             if (prospectData[key]["result"] == "success"):
               if (prospectData[key]["link"]):
                 sheet.write(rowCounter, 9, prospectData[key]["link"])
@@ -491,7 +550,7 @@ def GetInfo(link):
     log.error(e)
     return dataObject
 
-  if (socialsFlag.lower() != "false"):
+  if (socialsFlag):
     # Find facebook webpage
     facebook = soup.find_all('a', href=re.compile(r"facebook\.com\/(?!sharer)"))
     if (facebook):
@@ -728,4 +787,7 @@ def GetContactInfo(contactLink):
         info["email"] = match.group(1)
   return info
 
-Main()
+# Create the application GUI
+
+app = Application(callback=Init)
+app.mainloop()
