@@ -94,8 +94,6 @@ def Init(reqSearchString=None, reqSocials=None, reqResults=None, reqTimeframe=No
 
   searchString = reqSearchString
 
-  app.changeLabel("Getting information...", True)
-  time.sleep(1)
   Main()
 
 #------------------------------------------------------------------------------------#
