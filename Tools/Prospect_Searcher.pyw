@@ -51,6 +51,7 @@ def Init(reqSearchString=None, reqSocials=None, reqResults=None, reqTimeframe=No
     reqResults = int(reqResults)
   except Exception:
     log.critical("Could not parse results to get as an integer")
+    app.changeLabel("Results requested is not a valid number", False)
     raise Exception
 
   try:
@@ -58,6 +59,7 @@ def Init(reqSearchString=None, reqSocials=None, reqResults=None, reqTimeframe=No
     reqSave = int(reqSave)
   except Exception:
     log.critical("Could not parse save input as an integer")
+    app.changeLabel("Save option is not valid", False)
     raise Exception
 
   try:
@@ -65,29 +67,35 @@ def Init(reqSearchString=None, reqSocials=None, reqResults=None, reqTimeframe=No
     socialsFlag = ConvertToBool(reqSocials)
   except Exception:
     log.critical("Save to socials option is not a boolean")
+    app.changeLabel("Save option is not valid", False)
     raise Exception
 
   if (reqResults > 100):
     reqResults = 100
   elif (reqResults < 1):
     log.critical("Results requested is less that 1")
+    app.changeLabel("Results requested is less than 1", False)
     raise Exception
   results = reqResults
 
   if (not (reqTimeframe == "d" or reqTimeframe == "w" or reqTimeframe == "m" or reqTimeframe == "anytime")):
     log.critical("Invalid timeframe option")
+    app.changeLabel("Timeframe option is not valid", False)
     raise Exception
   else:
     timeframe = reqTimeframe
 
   if (not (reqSave >= 1 and reqSave <= 3)):
     log.critical("Invalid save option")
+    app.changeLabel("Save option is not valid", False)
     raise Exception
   else:
     followUpOption = reqSave
 
   searchString = reqSearchString
 
+  app.changeLabel("Getting information...", True)
+  time.sleep(1)
   Main()
 
 #------------------------------------------------------------------------------------#
@@ -97,8 +105,16 @@ def Init(reqSearchString=None, reqSocials=None, reqResults=None, reqTimeframe=No
 def Main():
   """Execute Main() to run the program"""
 
+  links = None
+
   log.info(f"Getting google search results for {searchString}")
-  links = GetGoogleResults(searchString, results, timeframe)
+  try:
+    links = GetGoogleResults(searchString, results, timeframe)
+  except Exception as err:
+    log.critical("Error in getting google results")
+    app.changeLabel("Error in getting google results", False)
+    raise err
+
   links = GetUnique(links)[:results]    # Only use the number of results requested
   infoArray = []
   threadArray = []
@@ -152,16 +168,25 @@ def Main():
     else:
       fileName = "Prospects.xls"
     log.debug(f"Saving information to {fileName}")
-    ExportXls(infoArray, fileName)
+    try:
+      ExportXls(infoArray, fileName)
+    except Exception as err:
+      app.changeLabel("Could not save to .xls sheet", False)
+      raise err
     log.info(f"{fileName} has been saved")
   elif (response == 2):
     log.debug("Saving information to Google")
-    SaveToGoogle(infoArray)
+    try:
+      SaveToGoogle(infoArray)
+    except Exception as err:
+      app.changeLabel("Could not save to Google", False)
+      raise err
     log.info("Saved info to Google Sheets")
   elif (response == 3):
     pass
   else:   # If response is not a valid response
     pass
+  app.changeLabel("Successfully got prospects", True)
 
 #------------------------------------------------------------------------------------#
 # Converts a string to bool
@@ -213,12 +238,14 @@ def SaveToGoogle(data):
     prospect = ""
     try:
       email = row["Contact Email"]
-    except KeyError:
+    except KeyError as err:
       log.error("'Contact Email' does not exist in 'Master Prospects'")
+      raise err
     try:
       prospect = row["Prospect"]
-    except KeyError:
+    except KeyError as err:
       log.error("'Prospect' does not exist in 'Master Prospects'")
+      raise err
     if (email and email != "N/A"):
       invalidEmails.append(email)
     if (prospect and prospect != "N/A"):
@@ -230,12 +257,14 @@ def SaveToGoogle(data):
     prospect = ""
     try:
       email = row["Email"]
-    except KeyError:
+    except KeyError as err:
       log.error("'Email' does not exist in 'Master Sent Emails'")
+      raise err
     try:
       prospect = row["Prospect"]
-    except KeyError:
+    except KeyError as err:
       log.error("'Prospect' does not exist in 'Master Prospects'")
+      raise err
     if (email and email != "N/A"):
       invalidEmails.append(email)
     if (prospect and prospect != "N/A"):
@@ -788,6 +817,5 @@ def GetContactInfo(contactLink):
   return info
 
 # Create the application GUI
-
 app = Application(callback=Init)
 app.mainloop()
