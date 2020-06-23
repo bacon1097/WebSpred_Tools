@@ -45,6 +45,13 @@ def Init(reqSearchString=None, reqSocials=None, reqResults=None, reqTimeframe=No
   """Gets values from GUI and validates them and then runs program"""
 
   global results, searchString, timeframe, socialsFlag, followUpOption
+  app.changeLabel("", True)
+
+
+  if (reqSearchString == ""):
+    log.critical("Search string is empty")
+    app.changeLabel("Nothing to search for", False)
+    raise Exception
 
   try:
     int(reqResults)
@@ -93,6 +100,8 @@ def Init(reqSearchString=None, reqSocials=None, reqResults=None, reqTimeframe=No
     followUpOption = reqSave
 
   searchString = reqSearchString
+
+  app.changeLabel("Getting information...", True)
 
   Main()
 
@@ -166,6 +175,7 @@ def Main():
     else:
       fileName = "Prospects.xls"
     log.debug(f"Saving information to {fileName}")
+    app.changeLabel(f"Saving information to {fileName}", True)
     try:
       ExportXls(infoArray, fileName)
     except Exception as err:
@@ -174,6 +184,7 @@ def Main():
     log.info(f"{fileName} has been saved")
   elif (response == 2):
     log.debug("Saving information to Google")
+    app.changeLabel("Saving information to Google", True)
     try:
       SaveToGoogle(infoArray)
     except Exception as err:
@@ -183,6 +194,8 @@ def Main():
   elif (response == 3):
     pass
   else:   # If response is not a valid response
+    log.error("Did not get a valid response")
+    app.changeLabel("Did not get a valid save option", False)
     pass
   app.changeLabel("Successfully got prospects", True)
 

@@ -1,4 +1,5 @@
 from tkinter import *
+import threading
 
 class Application(Frame):
   labelText = None
@@ -7,6 +8,7 @@ class Application(Frame):
   def __init__(self, master=Tk(), callback=None):
     master.title("Prospect Searcher")
     master.iconbitmap("./media/Prospect Searcher.ico")
+    master.resizable(False, False)
     Frame.__init__(self, master)
     self.pack()
     self.msgLabel = StringVar()
@@ -58,8 +60,9 @@ class Application(Frame):
     googleRadio.grid(row=4, column=1, columnspan=2)
     excelRadio.grid(row=4, column=3, columnspan=2)
 
-    submitButton = Button(self, text="Run", width=50, bg="lightgreen", command=lambda: callback(reqSearchString=searchInput.get(),\
-        reqSocials=getSocials.get(), reqResults=resultsInput.get(), reqTimeframe=reqTimeframe.get(), reqSave=reqSave.get()))
+    submitButton = Button(self, text="Run", width=50, bg="lightgreen", command=lambda: threading.Thread(target=callback,\
+      kwargs={"reqSearchString": searchInput.get(), "reqSocials": getSocials.get(), "reqResults": resultsInput.get(),\
+      "reqTimeframe": reqTimeframe.get(), "reqSave": reqSave.get()}).start())
     submitButton.grid(row=5, column=0, columnspan=5, padx=10, pady=10)
 
     msgLabel = Label(self, textvariable=self.msgLabel)
