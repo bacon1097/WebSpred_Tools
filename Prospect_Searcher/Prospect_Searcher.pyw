@@ -14,6 +14,9 @@ from Application import Application
 # Variables & Config
 #------------------------------------------------------------------------------------#
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--test", "-t", metavar="STRING", required=False, help="Enter a website URL to test")
+args = parser.parse_args()
 sh = logging.StreamHandler()
 formatter = logging.Formatter("%(levelname)s : %(asctime)s : %(message)s", datefmt="%I:%M:%S %p")
 sh.setFormatter(formatter)
@@ -129,7 +132,6 @@ def Main():
 
   for link in links:
     log.info(f"Getting information on {link}")
-    # info = GetInfo(link)
     thread = threading.Thread(target=lambda q, arg1: q.put(GetInfo(arg1)),   # Create a thread and put the result to a queue
       args=(que, link), daemon=True)
     log.debug("Added new thread for: " + link)
@@ -567,7 +569,7 @@ def GetInfo(link):
   # Get company name from link
   companyName = re.sub(r"^.*?//", "", link)
   companyName = re.sub(r"^.*?www\.", "", companyName)
-  companyName = re.sub(r"\..*$", "", companyName)
+  companyName = re.sub(r"\..*$", "", companyName).lower()
 
   dataObject = {
     companyName: {        # Set basic info for each website
@@ -576,7 +578,8 @@ def GetInfo(link):
       "Instagram Page": {},
       "Contact Info": {},
       "website": link,
-      "result": "failed"
+      "result": "failed",
+      "Prospect Name": ""
     }
   }
 
@@ -817,16 +820,21 @@ def GetContactInfo(contactLink):
     for number in contactNumbers:
       number = re.sub(r"\D", "", number.strip())
       if (len(number) == 11):
+        log.debug("Found match for contact email within: " + number)
         info["number"] = number[:5] + " " + number[5:]
 
   # Get email
   for elem in soup.select("body > *"):
     if (elem.text):
-      match = re.search(r"\s(\w+@\w+\.[\.\w]+)\s", elem.text)
+      match = re.search(r"\w+@\w+\.com?(\.uk)?", elem.text)
       if (match):
-        info["email"] = match.group(1)
+        log.debug("Found match for contact email within: " + elem.text)
+        info["email"] = match.group(0).lower()
   return info
 
 # Create the application GUI
-app = Application(callback=Init)
-app.mainloop()
+if (args.test):
+  print(json.dumps(GetInfo(args.test), indent=2))
+else:
+  app = Application(callback=Init)
+  app.mainloop()
