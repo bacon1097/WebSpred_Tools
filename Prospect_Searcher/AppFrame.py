@@ -1,7 +1,7 @@
 from tkinter import *
 import threading
 
-class Application(Frame):
+class AppFrame(Frame):
   labelText = None
   label = None
 

@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 from queue import Queue
 from oauth2client.service_account import ServiceAccountCredentials
 from gspread.models import Cell
-from Application import Application
+from AppFrame import AppFrame
 
 #------------------------------------------------------------------------------------#
 # Variables & Config
@@ -826,7 +826,7 @@ def GetContactInfo(contactLink):
   # Get email
   for elem in soup.select("body > *"):
     if (elem.text):
-      match = re.search(r"\w+@\w+\.com?(\.uk)?", elem.text)
+      match = re.search(r"[\w\d]+@\w+\.com?(\.uk)?", elem.text)
       if (match):
         log.debug("Found match for contact email within: " + elem.text)
         info["email"] = match.group(0).lower()
@@ -836,5 +836,5 @@ def GetContactInfo(contactLink):
 if (args.test):
   print(json.dumps(GetInfo(args.test), indent=2))
 else:
-  app = Application(callback=Init)
+  app = AppFrame(callback=Init)
   app.mainloop()
