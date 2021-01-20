@@ -1,0 +1,31 @@
+To get this app working you need to follow the following steps:
+
+
+1. First you need to ensure you have Python 3 installed on your system.
+This can be downloaded at https://www.python.org/downloads/
+
+2. Check you have installed the correct version
+  a. Open up a terminal (Mac | Unix) or command prompt (Windows)
+  b.  Paste the following and hit enter:
+    python --version
+
+3. You should see "Python 3.X.X", we just care if it starts with "Python 3"
+
+4. If it does not say Python 3 but you are sure you downloaded Python 3 then run the following
+  python3 --version
+
+5. If this shows python 3 then you will have to continue through this list but run commands with a "3" on the end e.g. "python3"
+
+6. Next you need to ensure that you have all the modules installed. Run the following commands
+  a. Open up a terminal (Mac | Unix) or command prompt (Windows)
+  b. Paste the following and hit enter:
+    pip install gspread tkinter requests argparse xlwt bs4 oauth2client
+
+7. Once the modules have been installed then you can run the application
+
+8. To run the application try double clicking on "Prospect_Searcher.pyw" alternatively type the following in a terminal / command prompt
+  python Prospect_Searcher.pyw
+
+Note: You can only save to google sheets if you provide a creds file that contains info on the user to connect as.
+Note: The prospect list will be saved in the same directory as the application
+Note: If you encounter an issue. Send the log file located in "log/Prospect_Searcher.log" to Ben Brunyee

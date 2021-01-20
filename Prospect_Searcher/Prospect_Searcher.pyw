@@ -613,6 +613,7 @@ def GetInfo(link):
 
     # Find instagram webpage
     instagram = soup.find_all('a', href=re.compile(r"instagram\.com\/.*"))
+    log.debug(instagram)
     if (instagram):
       info["Instagram Page"] = CheckInsta(str(instagram[0]["href"]))
     else:
@@ -820,7 +821,7 @@ def GetContactInfo(contactLink):
     for number in contactNumbers:
       number = re.sub(r"\D", "", number.strip())
       if (len(number) == 11):
-        log.debug("Found match for contact email within: " + number)
+        log.debug("Found match for contact number within: " + number)
         info["number"] = number[:5] + " " + number[5:]
 
   # Get email
